@@ -6,7 +6,6 @@ class GPUDevice
 public:
 	HRESULT Initialize(HWND hWnd);
 	void Destory();
-	void Render();
 
 	ID3D11Device* D3DDevice() {
 		assert(pd3dDevice != nullptr);
