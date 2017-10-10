@@ -2,7 +2,10 @@
 
 #include "GPUDevice.h"
 #include "SceneManager.h"
+
+// Scenes
 #include "RenderTriangleScene.h"
+#include "TransformedTriangleScene.h"
 
 HINSTANCE hInst = NULL;
 HWND hWnd = NULL;
@@ -24,7 +27,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		return 0;
 	}
 
-	auto scene = new RenderTriangleScene(&device);
+	auto scene = new TransformedTriangleScene(&device);
 	scene->Initialize();
 
 	smgr.Add(scene);
