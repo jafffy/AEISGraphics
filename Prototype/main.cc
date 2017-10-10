@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "GPUDevice.h"
+#include "SceneManager.h"
 #include "RenderTriangleScene.h"
 
 HINSTANCE hInst = NULL;
@@ -15,6 +16,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		return 0;
 
 	GPUDevice device;
+	SceneManager smgr;
 
 	if (FAILED(device.Initialize(hWnd)))
 	{
@@ -22,13 +24,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		return 0;
 	}
 
-	RenderTriangleScene scene(&device);
-	if (FAILED(scene.Initialize()))
-	{
-		scene.Destroy();
-		device.Destory();
-		return 0;
-	}
+	auto scene = new RenderTriangleScene(&device);
+	scene->Initialize();
+
+	smgr.Add(scene);
 
 	MSG msg = { 0 };
 	while (WM_QUIT != msg.message)
@@ -40,11 +39,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		}
 		else
 		{
-			scene.Update(-1); // TODO: Fix this magic number
-			scene.Render();
+			smgr.Update(-1); // TODO: Fix this magic number
+			smgr.Render();
 		}
 	}
 
+	smgr.Destroy();
 	device.Destory();
 
 	return 0;

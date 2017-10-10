@@ -8,5 +8,10 @@
 #include <DirectXMath.h>
 
 #include <cassert>
+#include <vector>
+
+#define IN
+#define OUT
+#define OPT
 
 #endif // PCH_H

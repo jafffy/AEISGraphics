@@ -12,7 +12,7 @@ public:
 };
 
 RenderTriangleScene::RenderTriangleScene(GPUDevice* gpuDevice)
-	: gpuDevice(gpuDevice)
+	: ISceneNode(gpuDevice)
 {
 }
 

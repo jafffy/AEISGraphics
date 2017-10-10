@@ -88,7 +88,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\deps\DirectXMath\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\deps\DirectXMath\Inc;$(SolutionDir)\deps\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
@@ -145,12 +145,16 @@
     <ClCompile Include="main.cc" />
     <ClCompile Include="pch.cc" />
     <ClCompile Include="RenderTriangleScene.cc" />
+    <ClCompile Include="SceneManager.cc" />
     <ClCompile Include="Utils.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GPUDevice.h" />
+    <ClInclude Include="ISceneNode.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="RenderTriangleScene.h" />
+    <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="Singleton.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>

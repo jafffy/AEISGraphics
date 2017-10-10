@@ -1,22 +1,20 @@
 #ifndef RENDERTRIANGLESCENE_H_
 #define RENDERTRIANGLESCENE_H_
 
-#include "GPUDevice.h"
+#include "ISceneNode.h"
 
-class RenderTriangleScene
+class RenderTriangleScene : public ISceneNode
 {
 public:
-	explicit RenderTriangleScene(GPUDevice* gpuDevice);
+	explicit RenderTriangleScene(GPUDevice* device);
 
-	HRESULT Initialize();
-	void Destroy();
+	virtual HRESULT Initialize();
+	virtual void Destroy();
 
-	void Update(float dt);
-	void Render();
+	virtual void Update(float dt);
+	virtual void Render();
 
 private:
-	GPUDevice* gpuDevice = nullptr;
-	
 	ID3D11VertexShader* pVertexShader = nullptr;
 	ID3D11PixelShader* pPixelShader = nullptr;
 	ID3D11InputLayout* pVertexLayout = nullptr;

@@ -1,7 +1,7 @@
 #include "pch.h"
 
 #include "GPUDevice.h"
-
+#include "Utils.h"
 
 HRESULT GPUDevice::Initialize(HWND hWnd)
 {
