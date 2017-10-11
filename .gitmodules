@@ -1,3 +1,6 @@
 [submodule "deps/DirectXMath"]
 	path = deps/DirectXMath
 	url = https://github.com/jafffy/DirectXMath.git
+[submodule "deps/tinyobjloader"]
+	path = deps/tinyobjloader
+	url = https://github.com/syoyo/tinyobjloader.git

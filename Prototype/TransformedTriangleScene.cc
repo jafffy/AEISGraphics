@@ -3,11 +3,22 @@
 
 #include "Utils.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+
 using namespace DirectX;
+
+static std::string inputfile = "Wuson.obj";
+static tinyobj::attrib_t attrib;
+static std::vector<tinyobj::shape_t> shapes;
+static std::vector<tinyobj::material_t> materials;
 
 struct SimpleVertex
 {
 	XMFLOAT3 pos;
+
+	SimpleVertex() {}
+	SimpleVertex(const XMFLOAT3& pos) : pos(pos) {}
 };
 
 struct ConstantBuffer
@@ -72,22 +83,52 @@ HRESULT TransformedTriangleScene::Initialize()
 	if (FAILED(hr))
 		return hr;
 
+	// Load model file
+	std::vector<SimpleVertex> vertices;
+	std::vector<WORD> indices;
+
+	std::string err;
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, inputfile.c_str());
+
+	if (!err.empty()) {
+		std::cerr << err << "\n";
+	}
+
+	if (!ret) {
+		return E_FAIL;
+	}
+
+	for (size_t s = 0; s < shapes.size(); ++s) {
+		size_t index_offset = 0;
+
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); ++f) {
+			int fv = shapes[s].mesh.num_face_vertices[f];
+
+			for (size_t v = 0; v < fv; ++v) {
+				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
+				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
+				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
+
+				vertices.push_back(XMFLOAT3(vx, vy, vz));
+				indices.push_back(idx.vertex_index);
+			}
+
+			index_offset += fv;
+		}
+	}
+
+	IndexCount = indices.size();
+
 	// Vertex Specification
 	{
-		SimpleVertex vertices[] =
-		{
-			XMFLOAT3(0.0f,  0.5f, 0.5f),
-			XMFLOAT3(0.5f, -0.5f, 0.5f),
-			XMFLOAT3(-0.5f, -0.5f, 0.5f)
-		};
-
 		D3D11_BUFFER_DESC bd = { 0 };
 		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof(SimpleVertex) * 3;
+		bd.ByteWidth = sizeof(SimpleVertex) * vertices.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = 0;
 		D3D11_SUBRESOURCE_DATA InitData = { 0 };
-		InitData.pSysMem = vertices;
+		InitData.pSysMem = vertices.data();
 		hr = pd3dDevice->CreateBuffer(&bd, &InitData, &pVertexBuffer);
 		if (FAILED(hr))
 			return hr;
@@ -95,18 +136,13 @@ HRESULT TransformedTriangleScene::Initialize()
 
 	// Index Specification
 	{
-		WORD indices[] =
-		{
-			0, 1, 2
-		};
-
 		D3D11_BUFFER_DESC bd = { 0 };
 		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof(WORD) * 3;
+		bd.ByteWidth = sizeof(WORD) * indices.size();
 		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bd.CPUAccessFlags = 0;
 		D3D11_SUBRESOURCE_DATA InitData = { 0 };
-		InitData.pSysMem = indices;
+		InitData.pSysMem = indices.data();
 		hr = pd3dDevice->CreateBuffer(&bd, &InitData, &pIndexBuffer);
 		if (FAILED(hr))
 			return hr;
@@ -115,8 +151,9 @@ HRESULT TransformedTriangleScene::Initialize()
 	// Matrix Specification
 	World = XMMatrixIdentity();
 
-	XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
-	XMVECTOR At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	// Camera matrix construction
+	XMVECTOR Eye = XMVectorSet(5.0f, 5.0f, -5.0f, 0.0f);
+	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	View = XMMatrixLookAtLH(Eye, At, Up);
 
@@ -151,7 +188,7 @@ void TransformedTriangleScene::Destroy()
 
 void TransformedTriangleScene::Update(float dt)
 {
-	World = XMMatrixRotationY(XM_PI * 0.025f);
+	World = XMMatrixRotationRollPitchYaw(XM_PI / 2, 0, 0);
 }
 
 void TransformedTriangleScene::Render()
@@ -189,7 +226,7 @@ void TransformedTriangleScene::Render()
 	pImmediateContext->VSSetShader(pVertexShader, nullptr, 0);
 	pImmediateContext->VSSetConstantBuffers(0, 1, &pConstantBuffer);
 	pImmediateContext->PSSetShader(pPixelShader, nullptr, 0);
-	pImmediateContext->DrawIndexed(3, 0, 0);
+	pImmediateContext->DrawIndexed(IndexCount, 0, 0);
 
 	pSwapChain->Present(0, 0);
 }

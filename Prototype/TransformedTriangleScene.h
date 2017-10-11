@@ -25,6 +25,8 @@ private:
 	DirectX::XMMATRIX World;
 	DirectX::XMMATRIX View;
 	DirectX::XMMATRIX Projection;
+
+	int IndexCount = 0;
 };
 
 #endif // TRANSFORMEDTRIANGLESCENE_H_

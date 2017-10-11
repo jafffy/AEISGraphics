@@ -8,7 +8,12 @@
 #include <DirectXMath.h>
 
 #include <cassert>
+
 #include <vector>
+
+#include <string>
+
+#include <iostream>
 
 #define IN
 #define OUT
