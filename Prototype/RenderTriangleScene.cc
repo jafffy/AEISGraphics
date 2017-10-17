@@ -5,7 +5,7 @@
 
 using namespace DirectX;
 
-class SimpleVertex
+class VertexHasNormal
 {
 public:
 	XMFLOAT3 pos;
@@ -67,7 +67,7 @@ HRESULT RenderTriangleScene::Initialize()
 		return hr;
 
 	// Vertex Specification
-	SimpleVertex vertices[] =
+	VertexHasNormal vertices[] =
 	{
 		XMFLOAT3(0.0f,  0.5f, 0.5f),
 		XMFLOAT3(0.5f, -0.5f, 0.5f),
@@ -75,7 +75,7 @@ HRESULT RenderTriangleScene::Initialize()
 	};
 	D3D11_BUFFER_DESC bd = { 0 };
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(SimpleVertex) * 3;
+	bd.ByteWidth = sizeof(VertexHasNormal) * 3;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	D3D11_SUBRESOURCE_DATA InitData = { 0 };
@@ -111,7 +111,7 @@ void RenderTriangleScene::Render()
 
 	pImmediateContext->IASetInputLayout(pVertexLayout);
 
-	UINT stride = sizeof(SimpleVertex);
+	UINT stride = sizeof(VertexHasNormal);
 	UINT offset = 0;
 	pImmediateContext->IASetVertexBuffers(0, 1, &pVertexBuffer, &stride, &offset);
 	pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

@@ -13,12 +13,14 @@ static tinyobj::attrib_t attrib;
 static std::vector<tinyobj::shape_t> shapes;
 static std::vector<tinyobj::material_t> materials;
 
-struct SimpleVertex
+struct VertexHasNormal
 {
 	XMFLOAT3 pos;
+	XMFLOAT3 normal;
 
-	SimpleVertex() {}
-	SimpleVertex(const XMFLOAT3& pos) : pos(pos) {}
+	VertexHasNormal() {}
+	VertexHasNormal(const XMFLOAT3& pos, const XMFLOAT3& normal)
+		: pos(pos), normal(normal) {}
 };
 
 struct ConstantBuffer
@@ -84,7 +86,7 @@ HRESULT TransformedTriangleScene::Initialize()
 		return hr;
 
 	// Load model file
-	std::vector<SimpleVertex> vertices;
+	std::vector<VertexHasNormal> vertices;
 	std::vector<WORD> indices;
 
 	std::string err;
@@ -109,8 +111,11 @@ HRESULT TransformedTriangleScene::Initialize()
 				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
 				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
 				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
+				tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
+				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
+				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
 
-				vertices.push_back(XMFLOAT3(vx, vy, vz));
+				vertices.push_back(VertexHasNormal(XMFLOAT3(vx, vy, vz), XMFLOAT3(nx, ny, nz));
 				indices.push_back(idx.vertex_index);
 			}
 
@@ -124,7 +129,7 @@ HRESULT TransformedTriangleScene::Initialize()
 	{
 		D3D11_BUFFER_DESC bd = { 0 };
 		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof(SimpleVertex) * vertices.size();
+		bd.ByteWidth = sizeof(VertexHasNormal) * vertices.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = 0;
 		D3D11_SUBRESOURCE_DATA InitData = { 0 };
@@ -211,7 +216,7 @@ void TransformedTriangleScene::Render()
 	pImmediateContext->IASetInputLayout(pVertexLayout);
 
 	{
-		UINT stride = sizeof(SimpleVertex);
+		UINT stride = sizeof(VertexHasNormal);
 		UINT offset = 0;
 		pImmediateContext->IASetVertexBuffers(0, 1, &pVertexBuffer, &stride, &offset);
 	}
