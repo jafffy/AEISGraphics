@@ -115,7 +115,7 @@ HRESULT TransformedTriangleScene::Initialize()
 				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
 				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
 
-				vertices.push_back(VertexHasNormal(XMFLOAT3(vx, vy, vz), XMFLOAT3(nx, ny, nz));
+				vertices.push_back(VertexHasNormal(XMFLOAT3(vx, vy, vz), XMFLOAT3(nx, ny, nz)));
 				indices.push_back(idx.vertex_index);
 			}
 
