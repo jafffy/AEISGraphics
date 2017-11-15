@@ -3,7 +3,7 @@
 
 #include <ppltasks.h>
 
-using namespace HolographicApp;
+using namespace HTTPCom;
 
 using namespace concurrency;
 using namespace Windows::ApplicationModel;
@@ -53,7 +53,7 @@ void AppView::Initialize(CoreApplicationView^ applicationView)
     // resources.
     m_deviceResources = std::make_shared<DX::DeviceResources>();
 
-    m_main = std::make_unique<HolographicAppMain>(m_deviceResources);
+    m_main = std::make_unique<HTTPComMain>(m_deviceResources);
 }
 
 // Called when the CoreWindow object is created (or re-created).
@@ -96,36 +96,16 @@ void AppView::Load(Platform::String^ entryPoint)
 // update, draw, and present loop, and it also oversees window message processing.
 void AppView::Run()
 {
-	LARGE_INTEGER lastTime;
-	LARGE_INTEGER frequency;
-
-	QueryPerformanceFrequency(&frequency);
-
-	QueryPerformanceCounter(&lastTime);
-
     while (!m_windowClosed)
     {
-		LARGE_INTEGER currentTime;
-		QueryPerformanceCounter(&currentTime);
-
-		double dt = ((currentTime.QuadPart - lastTime.QuadPart) * 0.0000001) / frequency.QuadPart;
-
-		lastTime = currentTime;
-
-		double amountToSleep = 1.0 / 40 - dt;
-
         if (m_windowVisible && (m_holographicSpace != nullptr))
         {
             CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
 
             HolographicFrame^ holographicFrame = m_main->Update();
 
-			// Sleep(amountToSleep * 1000 * 0.5);
-
             if (m_main->Render(holographicFrame))
             {
-				// Sleep(amountToSleep * 1000 * 0.5);
-
                 // The holographic frame has an API that presents the swap chain for each
                 // holographic camera.
                 m_deviceResources->Present(holographicFrame);
