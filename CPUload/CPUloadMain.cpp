@@ -1,12 +1,14 @@
 #include "pch.h"
-#include "HTTPComMain.h"
+#include "CPUloadMain.h"
 #include "Common\DirectXHelper.h"
 
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <Collection.h>
+
 #include <thread>
 
-using namespace HTTPCom;
+
+using namespace CPUload;
 
 using namespace concurrency;
 using namespace Platform;
@@ -15,54 +17,27 @@ using namespace Windows::Foundation::Numerics;
 using namespace Windows::Graphics::Holographic;
 using namespace Windows::Perception::Spatial;
 using namespace Windows::UI::Input::Spatial;
-using namespace Windows::Web::Http;
 using namespace std::placeholders;
 
-
-static const int kSmallBlockSize = 1;
-static const int kLargeBlockSize = 1024;
-static wchar_t buf[kLargeBlockSize + 1] = { 0 };
-static bool is_running = true;
-
-static std::thread t([]() {
-	srand(time(nullptr));
-	for (int i = 0; i < kLargeBlockSize; ++i) {
-		buf[i] = rand();
+auto body = []() {
+	float f = 0.0f;
+	while (true) {
+		for (int i = 0; i < 1000000; ++i)
+			f *= 1.1f;
 	}
-	buf[kLargeBlockSize] = '\0';
+};
 
-	auto uri = ref new Uri("http://210.107.198.216:3000/benchmark");
-	auto httpClient = ref new HttpClient();
-	auto content = ref new Platform::String(buf);
-	auto httpContent = ref new HttpStringContent(content);
-
-	while (is_running) {
-		DWORD startTime = GetTickCount();
-
-		for (int i = 0; i < 1; ++i) {
-			create_task(httpClient->PostAsync(uri, httpContent))
-				.then([](HttpResponseMessage^ response) {
-				Sleep(1);
-			}).wait();
-		}
-
-		DWORD elapsedTime = GetTickCount() - startTime;
-
-		if (elapsedTime < 1000) {
-			Sleep(1000 - elapsedTime);
-		}
-	}
-});
+std::thread t1(body), t2(body), t3(body);
 
 // Loads and initializes application assets when the application is loaded.
-HTTPComMain::HTTPComMain(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
+CPUloadMain::CPUloadMain(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
     m_deviceResources(deviceResources)
 {
     // Register to be notified if the device is lost or recreated.
     m_deviceResources->RegisterDeviceNotify(this);
 }
 
-void HTTPComMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
+void CPUloadMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
 {
     UnregisterHolographicEventHandlers();
 
@@ -86,7 +61,7 @@ void HTTPComMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
     m_locatabilityChangedToken =
         m_locator->LocatabilityChanged +=
             ref new Windows::Foundation::TypedEventHandler<SpatialLocator^, Object^>(
-                std::bind(&HTTPComMain::OnLocatabilityChanged, this, _1, _2)
+                std::bind(&CPUloadMain::OnLocatabilityChanged, this, _1, _2)
                 );
 
     // Respond to camera added events by creating any resources that are specific
@@ -100,7 +75,7 @@ void HTTPComMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
     m_cameraAddedToken =
         m_holographicSpace->CameraAdded +=
             ref new Windows::Foundation::TypedEventHandler<HolographicSpace^, HolographicSpaceCameraAddedEventArgs^>(
-                std::bind(&HTTPComMain::OnCameraAdded, this, _1, _2)
+                std::bind(&CPUloadMain::OnCameraAdded, this, _1, _2)
                 );
 
     // Respond to camera removed events by releasing resources that were created for that
@@ -112,7 +87,7 @@ void HTTPComMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
     m_cameraRemovedToken =
         m_holographicSpace->CameraRemoved +=
             ref new Windows::Foundation::TypedEventHandler<HolographicSpace^, HolographicSpaceCameraRemovedEventArgs^>(
-                std::bind(&HTTPComMain::OnCameraRemoved, this, _1, _2)
+                std::bind(&CPUloadMain::OnCameraRemoved, this, _1, _2)
                 );
 
     // The simplest way to render world-locked holograms is to create a stationary reference frame
@@ -131,7 +106,7 @@ void HTTPComMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
     //   occurred.
 }
 
-void HTTPComMain::UnregisterHolographicEventHandlers()
+void CPUloadMain::UnregisterHolographicEventHandlers()
 {
     if (m_holographicSpace != nullptr)
     {
@@ -156,18 +131,16 @@ void HTTPComMain::UnregisterHolographicEventHandlers()
     }
 }
 
-HTTPComMain::~HTTPComMain()
+CPUloadMain::~CPUloadMain()
 {
     // Deregister device notification.
     m_deviceResources->RegisterDeviceNotify(nullptr);
 
     UnregisterHolographicEventHandlers();
-
-	is_running = false;
 }
 
 // Updates the application state once per frame.
-HolographicFrame^ HTTPComMain::Update()
+HolographicFrame^ CPUloadMain::Update()
 {
     // Before doing the timer update, there is some work to do per-frame
     // to maintain holographic rendering. First, we will get information
@@ -252,7 +225,7 @@ HolographicFrame^ HTTPComMain::Update()
 // Renders the current frame to each holographic camera, according to the
 // current application and spatial positioning state. Returns true if the
 // frame was rendered to at least one camera.
-bool HTTPComMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holographicFrame)
+bool CPUloadMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holographicFrame)
 {
     // Don't try to render anything before the first Update.
     if (m_timer.GetFrameCount() == 0)
@@ -337,7 +310,7 @@ bool HTTPComMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holog
     });
 }
 
-void HTTPComMain::SaveAppState()
+void CPUloadMain::SaveAppState()
 {
     //
     // TODO: Insert code here to save your app state.
@@ -347,7 +320,7 @@ void HTTPComMain::SaveAppState()
     //
 }
 
-void HTTPComMain::LoadAppState()
+void CPUloadMain::LoadAppState()
 {
     //
     // TODO: Insert code here to load your app state.
@@ -359,7 +332,7 @@ void HTTPComMain::LoadAppState()
 
 // Notifies classes that use Direct3D device resources that the device resources
 // need to be released before this method returns.
-void HTTPComMain::OnDeviceLost()
+void CPUloadMain::OnDeviceLost()
 {
 #ifdef DRAW_SAMPLE_CONTENT
     m_spinningCubeRenderer->ReleaseDeviceDependentResources();
@@ -368,14 +341,14 @@ void HTTPComMain::OnDeviceLost()
 
 // Notifies classes that use Direct3D device resources that the device resources
 // may now be recreated.
-void HTTPComMain::OnDeviceRestored()
+void CPUloadMain::OnDeviceRestored()
 {
 #ifdef DRAW_SAMPLE_CONTENT
     m_spinningCubeRenderer->CreateDeviceDependentResources();
 #endif
 }
 
-void HTTPComMain::OnLocatabilityChanged(SpatialLocator^ sender, Object^ args)
+void CPUloadMain::OnLocatabilityChanged(SpatialLocator^ sender, Object^ args)
 {
     switch (sender->Locatability)
     {
@@ -407,7 +380,7 @@ void HTTPComMain::OnLocatabilityChanged(SpatialLocator^ sender, Object^ args)
     }
 }
 
-void HTTPComMain::OnCameraAdded(
+void CPUloadMain::OnCameraAdded(
     HolographicSpace^ sender,
     HolographicSpaceCameraAddedEventArgs^ args
     )
@@ -439,7 +412,7 @@ void HTTPComMain::OnCameraAdded(
     });
 }
 
-void HTTPComMain::OnCameraRemoved(
+void CPUloadMain::OnCameraRemoved(
     HolographicSpace^ sender,
     HolographicSpaceCameraRemovedEventArgs^ args
     )

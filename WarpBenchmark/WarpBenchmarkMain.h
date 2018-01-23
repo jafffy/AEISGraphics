@@ -1,25 +1,31 @@
 #pragma once
 
+//
+// Comment out this preprocessor definition to disable all of the
+// sample content.
+//
+// To remove the content after disabling it:
+//     * Remove the unused code from your app's Main class.
+//     * Delete the Content folder provided with this template.
+//
 #define DRAW_SAMPLE_CONTENT
 
 #include "Common\DeviceResources.h"
 #include "Common\StepTimer.h"
 
 #ifdef DRAW_SAMPLE_CONTENT
-//
-// Comment ifdef DRAW_SAMPLE_CONTENT
 #include "Content\SpinningCubeRenderer.h"
 #include "Content\SpatialInputHandler.h"
 #endif
 
 // Updates, renders, and presents holographic content using Direct3D.
-namespace HTTPCom
+namespace WarpBenchmark
 {
-    class HTTPComMain : public DX::IDeviceNotify
+    class WarpBenchmarkMain : public DX::IDeviceNotify
     {
     public:
-        HTTPComMain(const std::shared_ptr<DX::DeviceResources>& deviceResources);
-        ~HTTPComMain();
+        WarpBenchmarkMain(const std::shared_ptr<DX::DeviceResources>& deviceResources);
+        ~WarpBenchmarkMain();
 
         // Sets the holographic space. This is our closest analogue to setting a new window
         // for the app.
@@ -40,7 +46,6 @@ namespace HTTPCom
         virtual void OnDeviceRestored();
 
     private:
-
         // Asynchronously creates resources for new holographic cameras.
         void OnCameraAdded(
             Windows::Graphics::Holographic::HolographicSpace^ sender,

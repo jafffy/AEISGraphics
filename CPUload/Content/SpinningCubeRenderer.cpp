@@ -2,7 +2,7 @@
 #include "SpinningCubeRenderer.h"
 #include "Common\DirectXHelper.h"
 
-using namespace HolographicApp;
+using namespace CPUload;
 using namespace Concurrency;
 using namespace DirectX;
 using namespace Windows::Foundation::Numerics;
@@ -69,8 +69,6 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
     // Use the D3D device context to update Direct3D device-based resources.
     const auto context = m_deviceResources->GetD3DDeviceContext();
 
-	float brightness = 0.75f;
-
     // Update the model transform buffer for the hologram.
     context->UpdateSubresource(
         m_modelConstantBuffer.Get(),
@@ -80,15 +78,6 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
         0,
         0
         );
-
-	context->UpdateSubresource(
-		m_brightnessConstantBuffer.Get(),
-		0,
-		nullptr,
-		&brightness,
-		0,
-		0
-		);
 }
 
 // Renders one frame using the vertex and pixel shaders.
@@ -156,9 +145,6 @@ void SpinningCubeRenderer::Render()
         nullptr,
         0
         );
-
-	context->PSSetConstantBuffers(
-		0, 1, m_brightnessConstantBuffer.GetAddressOf());
 
     // Draw the objects.
     context->DrawIndexedInstanced(
@@ -241,14 +227,6 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
                 &m_modelConstantBuffer
                 )
             );
-
-		const CD3D11_BUFFER_DESC brightnessBufferDesc(sizeof(BrightnessBuffer), D3D11_BIND_CONSTANT_BUFFER);
-		DX::ThrowIfFailed(
-			m_deviceResources->GetD3DDevice()->CreateBuffer(
-				&brightnessBufferDesc,
-				nullptr,
-				&m_brightnessConstantBuffer)
-		);
     });
 
     task<void> createGSTask;
@@ -360,7 +338,6 @@ void SpinningCubeRenderer::ReleaseDeviceDependentResources()
     m_pixelShader.Reset();
     m_geometryShader.Reset();
     m_modelConstantBuffer.Reset();
-	m_brightnessConstantBuffer.Reset();
     m_vertexBuffer.Reset();
     m_indexBuffer.Reset();
 }
