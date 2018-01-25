@@ -4,3 +4,6 @@
 [submodule "deps/tinyobjloader"]
 	path = deps/tinyobjloader
 	url = https://github.com/syoyo/tinyobjloader.git
+[submodule "DisplayComplexity/tinyobjloader"]
+	path = DisplayComplexity/tinyobjloader
+	url = https://github.com/jafffy/tinyobjloader.git
