@@ -18,6 +18,7 @@ using namespace Windows::Graphics::Holographic;
 using namespace Windows::Perception::Spatial;
 using namespace Windows::UI::Input::Spatial;
 using namespace std::placeholders;
+using namespace DirectX;
 
 ID3D11Texture2D* GetReadableTexture2D(
 	int &width, int &height,
@@ -131,6 +132,11 @@ float GetDynamicScoreBasedOnSSIM(
 	ssim = ssim / ((meanX*meanX + meanY * meanY + c1) * (stddevX*stddevX + stddevY * stddevY + c2));
 	
 	return ssim;
+}
+
+float GetDynamicScoreBasedOnQuadtree()
+{
+	return 1;
 }
 
 // Loads and initializes application assets when the application is loaded.
@@ -407,6 +413,7 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 				m_spinningCubeRenderer->Render();
 			}
 #endif
+#ifdef IMAGE_BASED_APPROACH
 			int width, height;
 			auto backBufferTex = GetReadableTexture2D(
 				width, height,
@@ -438,7 +445,41 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 			}
 
 			std::swap(lastFrame, currentFrame);
+#else
+			auto modelMatrix = DirectX::XMLoadFloat4x4(&m_spinningCubeRenderer->modelMatrix);
 
+			auto coordinateSystem = m_referenceFrame->CoordinateSystem;
+			Platform::IBox<HolographicStereoTransform>^ viewTransformContainer = cameraPose->TryGetViewTransform(coordinateSystem);
+			HolographicStereoTransform viewCoordinateSystemTransform = viewTransformContainer->Value;
+			auto viewMatrix = DirectX::XMLoadFloat4x4(&viewCoordinateSystemTransform.Left);
+
+			HolographicStereoTransform cameraProjectionTransform = cameraPose->ProjectionTransform;
+			auto projectionMatrix = DirectX::XMLoadFloat4x4(&cameraProjectionTransform.Left);
+
+			auto boundingBox = m_spinningCubeRenderer->boundingBox;
+
+			BoundingBox2D boundingBox2D;
+			auto vertices = boundingBox.vertices;
+			for (int i = 0; i < 8; ++i) {
+				XMVECTOR vertex = XMLoadFloat3(&vertices[i]);
+
+				XMFLOAT4 result;
+				XMStoreFloat4(&result, 
+					XMVector3TransformCoord(
+						XMVector3TransformCoord(
+							XMVector3TransformCoord(vertex, modelMatrix), viewMatrix), projectionMatrix));
+				boundingBox2D.AddPoint(result.x, result.y);
+			}
+
+ 			float dynamicScore = GetDynamicScoreBasedOnQuadtree();
+
+			OutputDebugStringA(("Dynamic score: " + std::to_string(dynamicScore) + '\n').c_str());
+			OutputDebugStringA(("Min.x: " + std::to_string(boundingBox2D.Min.x) + '\n').c_str());
+			OutputDebugStringA(("Min.y: " + std::to_string(boundingBox2D.Min.y) + '\n').c_str());
+			OutputDebugStringA(("Max.x: " + std::to_string(boundingBox2D.Max.x) + '\n').c_str());
+			OutputDebugStringA(("Max.y: " + std::to_string(boundingBox2D.Max.y) + '\n').c_str());
+
+#endif
             atLeastOneCameraRendered = true;
         }
 

@@ -45,6 +45,8 @@ namespace FrameScaler
         virtual void OnDeviceLost();
         virtual void OnDeviceRestored();
 
+		std::unique_ptr<SpinningCubeRenderer>                           m_spinningCubeRenderer;
+
     private:
         // Asynchronously creates resources for new holographic cameras.
         void OnCameraAdded(
@@ -67,9 +69,6 @@ namespace FrameScaler
         void UnregisterHolographicEventHandlers();
 
 #ifdef DRAW_SAMPLE_CONTENT
-        // Renders a colorful holographic cube that's 20 centimeters wide. This sample content
-        // is used to demonstrate world-locked rendering.
-        std::unique_ptr<SpinningCubeRenderer>                           m_spinningCubeRenderer;
 
         // Listens for the Pressed spatial input event.
         std::shared_ptr<SpatialInputHandler>                            m_spatialInputHandler;

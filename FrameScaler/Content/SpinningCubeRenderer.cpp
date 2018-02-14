@@ -60,6 +60,8 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
     // matrix is transposed to prepare it for the shader.
     XMStoreFloat4x4(&m_modelConstantBufferData.model, XMMatrixTranspose(modelTransform));
 
+	XMStoreFloat4x4(&modelMatrix, modelTransform);
+
     // Loading is asynchronous. Resources must be created before they can be updated.
     if (!m_loadingComplete)
     {
@@ -265,6 +267,11 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
             { XMFLOAT3( 0.1f,  0.1f, -0.1f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
             { XMFLOAT3( 0.1f,  0.1f,  0.1f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
         }};
+
+		for (int i = 0; i < cubeVertices.size(); ++i) {
+			boundingBox.AddPoint(cubeVertices[i].pos);
+		}
+		boundingBox.BuildGeometry();
 
         D3D11_SUBRESOURCE_DATA vertexBufferData = {0};
         vertexBufferData.pSysMem                = cubeVertices.data();
