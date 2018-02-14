@@ -13,9 +13,13 @@ namespace DisplayComplexity
 
 
     // Used to send per-vertex data to the vertex shader.
-    struct VertexPositionColor
-    {
-        DirectX::XMFLOAT3 pos;
-        DirectX::XMFLOAT3 color;
-    };
+	struct VertexPositionColor
+	{
+		DirectX::XMFLOAT3 pos;
+		DirectX::XMFLOAT3 color;
+
+		VertexPositionColor(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 color)
+			: pos(pos), color(color)
+		{}
+	};
 }

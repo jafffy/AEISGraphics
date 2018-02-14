@@ -78,7 +78,8 @@ void DX::CameraResources::CreateResourcesForBackBuffer(
         m_dxgiFormat = backBufferDesc.Format;
 
         // Check for render target size changes.
-        Windows::Foundation::Size currentSize = m_holographicCamera->RenderTargetSize;
+		Windows::Foundation::Size currentSize = m_holographicCamera->RenderTargetSize;
+
         if (m_d3dRenderTargetSize != currentSize)
         {
             // Set render target size.

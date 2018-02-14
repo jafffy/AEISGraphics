@@ -144,6 +144,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppView.h" />
+    <ClInclude Include="Common\FramerateController.h" />
+    <ClInclude Include="Common\MeshCache.h" />
+    <ClInclude Include="Common\Singleton.h" />
+    <ClInclude Include="Content\MeshRenderer.h" />
+    <ClInclude Include="Content\Singleton.h" />
     <ClInclude Include="DisplayComplexityMain.h" />
     <ClInclude Include="Common\DeviceResources.h" />
     <ClInclude Include="Common\DirectXHelper.h" />
@@ -153,9 +158,13 @@
     <ClInclude Include="Content\ShaderStructures.h" />
     <ClInclude Include="Content\SpinningCubeRenderer.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="tiny_obj_loader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AppView.cpp" />
+    <ClCompile Include="Common\FramerateController.cpp" />
+    <ClCompile Include="Common\MeshCache.cpp" />
+    <ClCompile Include="Content\MeshRenderer.cpp" />
     <ClCompile Include="DisplayComplexityMain.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp" />
     <ClCompile Include="Common\CameraResources.cpp" />
@@ -164,11 +173,28 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="tiny_obj_loader.cc" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
+    <Image Include="Assets\bunny.mtl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+    <Image Include="Assets\bunny_2.mtl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+    <Image Include="Assets\bunny_3.mtl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+    <Image Include="Assets\bunny_4.mtl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
     <None Include="DisplayComplexity_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
@@ -189,6 +215,26 @@
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\bunny.obj">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\bunny_2.obj">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+    <Image Include="Assets\bunny_3.obj">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+    <Image Include="Assets\bunny_4.obj">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </Image>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VSINSTALLDIR)\Common7\IDE\Extensions\Microsoft\VsGraphics\ImageContentTask.targets" />
@@ -197,5 +243,8 @@
   </ImportGroup>
   <PropertyGroup>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
+    <AppxPackageDir>C:\Users\jafffy\Desktop\UWPAppOutput\fullres15FPS\</AppxPackageDir>
+    <AppxBundle>Always</AppxBundle>
+    <AppxBundlePlatforms>x86</AppxBundlePlatforms>
   </PropertyGroup>
 </Project>

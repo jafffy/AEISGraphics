@@ -23,6 +23,7 @@ namespace DX
         void RegisterDeviceNotify(IDeviceNotify* deviceNotify);
         void Trim();
         void Present(Windows::Graphics::Holographic::HolographicFrame^ frame);
+		void DiscardAll(Windows::Graphics::Holographic::HolographicFrame^ frame);
 
         // Public methods related to holographic devices.
         void SetHolographicSpace(Windows::Graphics::Holographic::HolographicSpace^ space);

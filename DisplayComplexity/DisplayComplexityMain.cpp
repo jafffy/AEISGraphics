@@ -5,6 +5,7 @@
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <Collection.h>
 
+#include "Common\MeshCache.h"
 
 using namespace DisplayComplexity;
 
@@ -23,6 +24,8 @@ DisplayComplexityMain::DisplayComplexityMain(const std::shared_ptr<DX::DeviceRes
 {
     // Register to be notified if the device is lost or recreated.
     m_deviceResources->RegisterDeviceNotify(this);
+	
+	new MeshCache();
 }
 
 void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
@@ -37,7 +40,8 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
 
 #ifdef DRAW_SAMPLE_CONTENT
     // Initialize the sample hologram.
-    m_spinningCubeRenderer = std::make_unique<SpinningCubeRenderer>(m_deviceResources);
+	m_meshRenderer = std::make_unique<MeshRenderer>(m_deviceResources);
+	// m_spinningCubeRenderer = std::make_unique<SpinningCubeRenderer>(m_deviceResources);
 
     m_spatialInputHandler = std::make_unique<SpatialInputHandler>();
 #endif
@@ -155,6 +159,7 @@ HolographicFrame^ DisplayComplexityMain::Update()
 #ifdef DRAW_SAMPLE_CONTENT
     // Check for new input state since the last frame.
     SpatialInteractionSourceState^ pointerState = m_spatialInputHandler->CheckForInput();
+	/*
     if (pointerState != nullptr)
     {
         // When a Pressed gesture is detected, the sample hologram will be repositioned
@@ -163,6 +168,7 @@ HolographicFrame^ DisplayComplexityMain::Update()
             pointerState->TryGetPointerPose(currentCoordinateSystem)
             );
     }
+	*/
 #endif
 
     m_timer.Tick([&] ()
@@ -176,7 +182,8 @@ HolographicFrame^ DisplayComplexityMain::Update()
         //
 
 #ifdef DRAW_SAMPLE_CONTENT
-        m_spinningCubeRenderer->Update(m_timer);
+		m_meshRenderer->Update(m_timer);
+        // m_spinningCubeRenderer->Update(m_timer);
 #endif
     });
 
@@ -198,10 +205,16 @@ HolographicFrame^ DisplayComplexityMain::Update()
         // since that is the only hologram available for the user to focus on.
         // You can also set the relative velocity and facing of that content; the sample
         // hologram is at a fixed point so we only need to indicate its position.
+		/*
         renderingParameters->SetFocusPoint(
             currentCoordinateSystem,
             m_spinningCubeRenderer->GetPosition()
             );
+		*/
+		renderingParameters->SetFocusPoint(
+			currentCoordinateSystem,
+			m_meshRenderer->GetPosition()
+		);
 #endif
     }
 
@@ -274,7 +287,6 @@ bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFr
             //      also clear the screen to Transparent as shown above.
             //
 
-
             // The view and projection matrices for each holographic camera will change
             // every frame. This function refreshes the data in the constant buffer for
             // the holographic camera indicated by cameraPose.
@@ -286,9 +298,9 @@ bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFr
 #ifdef DRAW_SAMPLE_CONTENT
             // Only render world-locked content when positional tracking is active.
             if (cameraActive)
-            {
-                // Draw the sample hologram.
-                m_spinningCubeRenderer->Render();
+			{
+				m_meshRenderer->Render();
+				// m_spinningCubeRenderer->Render();
             }
 #endif
             atLeastOneCameraRendered = true;
@@ -323,7 +335,8 @@ void DisplayComplexityMain::LoadAppState()
 void DisplayComplexityMain::OnDeviceLost()
 {
 #ifdef DRAW_SAMPLE_CONTENT
-    m_spinningCubeRenderer->ReleaseDeviceDependentResources();
+    // m_spinningCubeRenderer->ReleaseDeviceDependentResources();
+	m_meshRenderer->ReleaseDeviceDependentResources();
 #endif
 }
 
@@ -332,7 +345,8 @@ void DisplayComplexityMain::OnDeviceLost()
 void DisplayComplexityMain::OnDeviceRestored()
 {
 #ifdef DRAW_SAMPLE_CONTENT
-    m_spinningCubeRenderer->CreateDeviceDependentResources();
+    // m_spinningCubeRenderer->CreateDeviceDependentResources();
+	m_meshRenderer->CreateDeviceDependentResources();
 #endif
 }
 
@@ -375,6 +389,8 @@ void DisplayComplexityMain::OnCameraAdded(
 {
     Deferral^ deferral = args->GetDeferral();
     HolographicCamera^ holographicCamera = args->Camera;
+	// holographicCamera->ViewportScaleFactor = 0.5f;
+
     create_task([this, deferral, holographicCamera] ()
     {
         //

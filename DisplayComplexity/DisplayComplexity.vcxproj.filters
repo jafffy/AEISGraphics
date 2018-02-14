@@ -56,7 +56,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="HolographicAppMain.cpp" />
     <ClCompile Include="AppView.cpp" />
     <ClCompile Include="Content\SpatialInputHandler.cpp">
       <Filter>Content</Filter>
@@ -64,10 +63,20 @@
     <ClCompile Include="Content\SpinningCubeRenderer.cpp">
       <Filter>Content</Filter>
     </ClCompile>
+    <ClCompile Include="DisplayComplexityMain.cpp" />
+    <ClCompile Include="Content\MeshRenderer.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="tiny_obj_loader.cc" />
+    <ClCompile Include="Common\MeshCache.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\FramerateController.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="HolographicAppMain.h" />
     <ClInclude Include="AppView.h" />
     <ClInclude Include="Content\SpatialInputHandler.h">
       <Filter>Content</Filter>
@@ -77,6 +86,23 @@
     </ClInclude>
     <ClInclude Include="Content\ShaderStructures.h">
       <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="DisplayComplexityMain.h" />
+    <ClInclude Include="Content\MeshRenderer.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="Content\Singleton.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="tiny_obj_loader.h" />
+    <ClInclude Include="Common\MeshCache.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Singleton.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\FramerateController.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -98,5 +124,31 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="DisplayComplexity_TemporaryKey.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\bunny.mtl">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny.obj">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny_2.mtl">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny_2.obj">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny_3.mtl">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny_3.obj">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny_4.mtl">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\bunny_4.obj">
+      <Filter>Assets</Filter>
+    </Image>
   </ItemGroup>
 </Project>

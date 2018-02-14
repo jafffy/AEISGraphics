@@ -2,6 +2,7 @@
 #include "AppView.h"
 
 #include <ppltasks.h>
+#include <cstdlib>
 
 using namespace HolographicApp;
 
@@ -12,6 +13,11 @@ using namespace Windows::ApplicationModel::Core;
 using namespace Windows::Foundation;
 using namespace Windows::Graphics::Holographic;
 using namespace Windows::UI::Core;
+using namespace Windows::Web::Http;
+
+static LARGE_INTEGER launchTime;
+static LARGE_INTEGER suspendTime;
+static LARGE_INTEGER timerFrequency;
 
 // The main function is only used to initialize our IFrameworkView class.
 // Under most circumstances, you should not need to modify this function.
@@ -100,19 +106,40 @@ void AppView::Run()
 	LARGE_INTEGER frequency;
 
 	QueryPerformanceFrequency(&frequency);
-
 	QueryPerformanceCounter(&lastTime);
+
+	QueryPerformanceFrequency(&timerFrequency);
+	QueryPerformanceCounter(&launchTime);
+
+	LARGE_INTEGER qpcMaxDelta;
+	qpcMaxDelta.QuadPart = frequency.QuadPart / 10;
+
+	double heartbeatTimer = 0.0f;
 
     while (!m_windowClosed)
     {
 		LARGE_INTEGER currentTime;
 		QueryPerformanceCounter(&currentTime);
 
-		double dt = ((currentTime.QuadPart - lastTime.QuadPart) * 0.0000001) / frequency.QuadPart;
+		uint64 timeDelta = currentTime.QuadPart - lastTime.QuadPart;
+
+		if (timeDelta > qpcMaxDelta.QuadPart)
+		{
+			timeDelta = qpcMaxDelta.QuadPart;
+		}
+
+		static const unsigned TicksPerSecond = 10'000'000;
+		timeDelta *= TicksPerSecond;
+		timeDelta /= frequency.QuadPart;
+
+		double dt = static_cast<double>(timeDelta) / TicksPerSecond;
+		heartbeatTimer += dt;
 
 		lastTime = currentTime;
 
-		double amountToSleep = 1.0 / 40 - dt;
+		double framePerSecond = 60;
+		double amountToSleep = 1.0 / framePerSecond - dt;
+		amountToSleep = amountToSleep > 0 ? amountToSleep : 0;
 
         if (m_windowVisible && (m_holographicSpace != nullptr))
         {
@@ -120,11 +147,11 @@ void AppView::Run()
 
             HolographicFrame^ holographicFrame = m_main->Update();
 
-			// Sleep(amountToSleep * 1000 * 0.5);
+			Sleep(amountToSleep * 1000 * 0.5);
 
             if (m_main->Render(holographicFrame))
             {
-				// Sleep(amountToSleep * 1000 * 0.5);
+				Sleep(amountToSleep * 1000 * 0.5);
 
                 // The holographic frame has an API that presents the swap chain for each
                 // holographic camera.
@@ -173,10 +200,6 @@ void AppView::OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args)
         {
             m_main->SaveAppState();
         }
-
-        //
-        // TODO: Insert code here to save your app state.
-        //
 
         deferral->Complete();
     });

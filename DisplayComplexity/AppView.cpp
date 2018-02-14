@@ -3,6 +3,8 @@
 
 #include <ppltasks.h>
 
+#include "Common\FramerateController.h"
+
 using namespace DisplayComplexity;
 
 using namespace concurrency;
@@ -96,16 +98,28 @@ void AppView::Load(Platform::String^ entryPoint)
 // update, draw, and present loop, and it also oversees window message processing.
 void AppView::Run()
 {
+	auto* framerateController = new FramerateController();
+
+	framerateController->Start();
+	framerateController->SetFramerate(15);
+	
     while (!m_windowClosed)
     {
         if (m_windowVisible && (m_holographicSpace != nullptr))
         {
+			framerateController->Tick();
+
+			if (framerateController->ShouldPassThisFrame())
+				continue;
+
             CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
 
             HolographicFrame^ holographicFrame = m_main->Update();
 
             if (m_main->Render(holographicFrame))
             {
+				framerateController->Wait();
+
                 // The holographic frame has an API that presents the swap chain for each
                 // holographic camera.
                 m_deviceResources->Present(holographicFrame);
@@ -116,6 +130,14 @@ void AppView::Run()
             CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessOneAndAllPending);
         }
     }
+
+	{
+		auto* delTarget = FramerateController::get();
+		if (delTarget) {
+			delete delTarget;
+			delTarget = nullptr;
+		}
+	}
 }
 
 // Terminate events do not cause Uninitialize to be called. It will be called if your IFrameworkView

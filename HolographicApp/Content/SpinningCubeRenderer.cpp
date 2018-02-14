@@ -69,7 +69,7 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
     // Use the D3D device context to update Direct3D device-based resources.
     const auto context = m_deviceResources->GetD3DDeviceContext();
 
-	float brightness = 0.75f;
+	float brightness = 1.0f;
 
     // Update the model transform buffer for the hologram.
     context->UpdateSubresource(
