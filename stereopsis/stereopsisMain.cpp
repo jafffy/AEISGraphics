@@ -1,15 +1,13 @@
 #include "pch.h"
-#include "DisplayComplexityMain.h"
+#include "stereopsisMain.h"
 #include "Common\DirectXHelper.h"
 
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <Collection.h>
+#include <DirectXCollision.h>
 
-#include "Common\MeshCache.h"
 
-#include <string>
-
-using namespace DisplayComplexity;
+using namespace stereopsis;
 
 using namespace concurrency;
 using namespace Platform;
@@ -21,16 +19,14 @@ using namespace Windows::UI::Input::Spatial;
 using namespace std::placeholders;
 
 // Loads and initializes application assets when the application is loaded.
-DisplayComplexityMain::DisplayComplexityMain(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
+stereopsisMain::stereopsisMain(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
     m_deviceResources(deviceResources)
 {
     // Register to be notified if the device is lost or recreated.
     m_deviceResources->RegisterDeviceNotify(this);
-	
-	new MeshCache();
 }
 
-void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
+void stereopsisMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
 {
     UnregisterHolographicEventHandlers();
 
@@ -42,11 +38,7 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
 
 #ifdef DRAW_SAMPLE_CONTENT
     // Initialize the sample hologram.
-	m_meshRenderer = std::make_unique<MeshRenderer>(m_deviceResources);
-    m_meshRenderer2 = std::make_unique<MeshRenderer>(m_deviceResources);
-    m_meshRenderer->SetPosition(Windows::Foundation::Numerics::float3(0.0f, 0.0f, -1.0f));
-    m_meshRenderer2->SetPosition(Windows::Foundation::Numerics::float3(0.1f, 0.0f, -1.0f));
-	// m_spinningCubeRenderer = std::make_unique<SpinningCubeRenderer>(m_deviceResources);
+    m_spinningCubeRenderer = std::make_unique<SpinningCubeRenderer>(m_deviceResources);
 
     m_spatialInputHandler = std::make_unique<SpatialInputHandler>();
 #endif
@@ -58,7 +50,7 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
     m_locatabilityChangedToken =
         m_locator->LocatabilityChanged +=
             ref new Windows::Foundation::TypedEventHandler<SpatialLocator^, Object^>(
-                std::bind(&DisplayComplexityMain::OnLocatabilityChanged, this, _1, _2)
+                std::bind(&stereopsisMain::OnLocatabilityChanged, this, _1, _2)
                 );
 
     // Respond to camera added events by creating any resources that are specific
@@ -72,7 +64,7 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
     m_cameraAddedToken =
         m_holographicSpace->CameraAdded +=
             ref new Windows::Foundation::TypedEventHandler<HolographicSpace^, HolographicSpaceCameraAddedEventArgs^>(
-                std::bind(&DisplayComplexityMain::OnCameraAdded, this, _1, _2)
+                std::bind(&stereopsisMain::OnCameraAdded, this, _1, _2)
                 );
 
     // Respond to camera removed events by releasing resources that were created for that
@@ -84,7 +76,7 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
     m_cameraRemovedToken =
         m_holographicSpace->CameraRemoved +=
             ref new Windows::Foundation::TypedEventHandler<HolographicSpace^, HolographicSpaceCameraRemovedEventArgs^>(
-                std::bind(&DisplayComplexityMain::OnCameraRemoved, this, _1, _2)
+                std::bind(&stereopsisMain::OnCameraRemoved, this, _1, _2)
                 );
 
     // The simplest way to render world-locked holograms is to create a stationary reference frame
@@ -103,7 +95,7 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
     //   occurred.
 }
 
-void DisplayComplexityMain::UnregisterHolographicEventHandlers()
+void stereopsisMain::UnregisterHolographicEventHandlers()
 {
     if (m_holographicSpace != nullptr)
     {
@@ -128,7 +120,7 @@ void DisplayComplexityMain::UnregisterHolographicEventHandlers()
     }
 }
 
-DisplayComplexityMain::~DisplayComplexityMain()
+stereopsisMain::~stereopsisMain()
 {
     // Deregister device notification.
     m_deviceResources->RegisterDeviceNotify(nullptr);
@@ -137,7 +129,7 @@ DisplayComplexityMain::~DisplayComplexityMain()
 }
 
 // Updates the application state once per frame.
-HolographicFrame^ DisplayComplexityMain::Update()
+HolographicFrame^ stereopsisMain::Update()
 {
     // Before doing the timer update, there is some work to do per-frame
     // to maintain holographic rendering. First, we will get information
@@ -164,16 +156,14 @@ HolographicFrame^ DisplayComplexityMain::Update()
 #ifdef DRAW_SAMPLE_CONTENT
     // Check for new input state since the last frame.
     SpatialInteractionSourceState^ pointerState = m_spatialInputHandler->CheckForInput();
-	/*
     if (pointerState != nullptr)
     {
-        // When a Pressed gesture is detected, the sample hologram will be repositioned
-        // two meters in front of the user.
-        m_spinningCubeRenderer->PositionHologram(
-            pointerState->TryGetPointerPose(currentCoordinateSystem)
-            );
+        if (pointerState->IsPressed) {
+            OutputDebugStringA("Pressed!\n");
+        }
+
+        auto pointerPose = pointerState->TryGetPointerPose(currentCoordinateSystem);
     }
-	*/
 #endif
 
     m_timer.Tick([&] ()
@@ -187,7 +177,7 @@ HolographicFrame^ DisplayComplexityMain::Update()
         //
 
 #ifdef DRAW_SAMPLE_CONTENT
-        // m_spinningCubeRenderer->Update(m_timer);
+        m_spinningCubeRenderer->Update(m_timer);
 #endif
     });
 
@@ -209,16 +199,10 @@ HolographicFrame^ DisplayComplexityMain::Update()
         // since that is the only hologram available for the user to focus on.
         // You can also set the relative velocity and facing of that content; the sample
         // hologram is at a fixed point so we only need to indicate its position.
-		/*
         renderingParameters->SetFocusPoint(
             currentCoordinateSystem,
             m_spinningCubeRenderer->GetPosition()
             );
-		*/
-		renderingParameters->SetFocusPoint(
-			currentCoordinateSystem,
-			m_meshRenderer->GetPosition()
-		);
 #endif
     }
 
@@ -230,7 +214,7 @@ HolographicFrame^ DisplayComplexityMain::Update()
 // Renders the current frame to each holographic camera, according to the
 // current application and spatial positioning state. Returns true if the
 // frame was rendered to at least one camera.
-bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holographicFrame)
+bool stereopsisMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holographicFrame)
 {
     // Don't try to render anything before the first Update.
     if (m_timer.GetFrameCount() == 0)
@@ -257,9 +241,6 @@ bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFr
         HolographicFramePrediction^ prediction = holographicFrame->CurrentPrediction;
 
         bool atLeastOneCameraRendered = false;
-
-        int cameraId = 0;
-
         for (auto cameraPose : prediction->CameraPoses)
         {
             // This represents the device-based resources for a HolographicCamera.
@@ -294,6 +275,7 @@ bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFr
             //      also clear the screen to Transparent as shown above.
             //
 
+
             // The view and projection matrices for each holographic camera will change
             // every frame. This function refreshes the data in the constant buffer for
             // the holographic camera indicated by cameraPose.
@@ -305,12 +287,9 @@ bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFr
 #ifdef DRAW_SAMPLE_CONTENT
             // Only render world-locked content when positional tracking is active.
             if (cameraActive)
-			{
-                m_meshRenderer->Update(m_timer);
-				m_meshRenderer->Render();
-                // m_meshRenderer2->Update(m_timer);
-                // m_meshRenderer2->Render();
-				// m_spinningCubeRenderer->Render();
+            {
+                // Draw the sample hologram.
+                m_spinningCubeRenderer->Render();
             }
 #endif
             atLeastOneCameraRendered = true;
@@ -320,7 +299,7 @@ bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFr
     });
 }
 
-void DisplayComplexityMain::SaveAppState()
+void stereopsisMain::SaveAppState()
 {
     //
     // TODO: Insert code here to save your app state.
@@ -330,7 +309,7 @@ void DisplayComplexityMain::SaveAppState()
     //
 }
 
-void DisplayComplexityMain::LoadAppState()
+void stereopsisMain::LoadAppState()
 {
     //
     // TODO: Insert code here to load your app state.
@@ -342,27 +321,23 @@ void DisplayComplexityMain::LoadAppState()
 
 // Notifies classes that use Direct3D device resources that the device resources
 // need to be released before this method returns.
-void DisplayComplexityMain::OnDeviceLost()
+void stereopsisMain::OnDeviceLost()
 {
 #ifdef DRAW_SAMPLE_CONTENT
-    // m_spinningCubeRenderer->ReleaseDeviceDependentResources();
-	m_meshRenderer->ReleaseDeviceDependentResources();
-    m_meshRenderer2->ReleaseDeviceDependentResources();
+    m_spinningCubeRenderer->ReleaseDeviceDependentResources();
 #endif
 }
 
 // Notifies classes that use Direct3D device resources that the device resources
 // may now be recreated.
-void DisplayComplexityMain::OnDeviceRestored()
+void stereopsisMain::OnDeviceRestored()
 {
 #ifdef DRAW_SAMPLE_CONTENT
-    // m_spinningCubeRenderer->CreateDeviceDependentResources();
-	m_meshRenderer->CreateDeviceDependentResources();
-    m_meshRenderer2->CreateDeviceDependentResources();
+    m_spinningCubeRenderer->CreateDeviceDependentResources();
 #endif
 }
 
-void DisplayComplexityMain::OnLocatabilityChanged(SpatialLocator^ sender, Object^ args)
+void stereopsisMain::OnLocatabilityChanged(SpatialLocator^ sender, Object^ args)
 {
     switch (sender->Locatability)
     {
@@ -394,15 +369,13 @@ void DisplayComplexityMain::OnLocatabilityChanged(SpatialLocator^ sender, Object
     }
 }
 
-void DisplayComplexityMain::OnCameraAdded(
+void stereopsisMain::OnCameraAdded(
     HolographicSpace^ sender,
     HolographicSpaceCameraAddedEventArgs^ args
     )
 {
     Deferral^ deferral = args->GetDeferral();
     HolographicCamera^ holographicCamera = args->Camera;
-	// holographicCamera->ViewportScaleFactor = 0.5f;
-
     create_task([this, deferral, holographicCamera] ()
     {
         //
@@ -428,7 +401,7 @@ void DisplayComplexityMain::OnCameraAdded(
     });
 }
 
-void DisplayComplexityMain::OnCameraRemoved(
+void stereopsisMain::OnCameraRemoved(
     HolographicSpace^ sender,
     HolographicSpaceCameraRemovedEventArgs^ args
     )

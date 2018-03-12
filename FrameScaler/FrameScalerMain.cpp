@@ -88,6 +88,33 @@ float GetDynamicScoreBasedOnMSE(
 	return mse;
 }
 
+float GetDynamicScoreBasedOnMSEGrayscaled(
+    const unsigned char* previousFrame,
+    const unsigned char* currentFrame,
+    int width, int height)
+{
+    float mse = 0;
+
+    for (int i = 0; i < width * height; ++i) {
+        float lR = previousFrame[4 * i + 0] / 255;
+        float lG = previousFrame[4 * i + 1] / 255;
+        float lB = previousFrame[4 * i + 2] / 255;
+        float lY = 0.2125 * lR + 0.7152 * lG + 0.0722 * lB;
+
+        float cR = currentFrame[4 * i + 0] / 255;
+        float cG = currentFrame[4 * i + 1] / 255;
+        float cB = currentFrame[4 * i + 2] / 255;
+        float cY = 0.2125 * cR + 0.7152 * cG + 0.0722 * cB;
+
+        float sqsum = (lY - cY) * (lY - cY);
+        mse += sqsum;
+    }
+
+    mse = mse / (float)(width * height);
+
+    return mse;
+}
+
 float GetDynamicScoreBasedOnSSIM(
 	const unsigned char* previousFrame,
 	const unsigned char* currentFrame,
@@ -134,9 +161,125 @@ float GetDynamicScoreBasedOnSSIM(
 	return ssim;
 }
 
-float GetDynamicScoreBasedOnQuadtree()
+struct QuadTree
 {
-	return 1;
+    struct Node
+    {
+        Node* parent = nullptr;
+        Node* children[4] = { nullptr, nullptr, nullptr, nullptr };
+
+        bool isFull = false;
+        int depth;
+    };
+
+    Node* rootNode = nullptr;
+
+    static QuadTree* Create(const std::vector<const BoundingBox2D*>& geometries, const int kMaxDepth);
+
+    ~QuadTree()
+    {
+        DeleteSubtree(rootNode);
+
+        if (rootNode) {
+            delete rootNode;
+            rootNode = nullptr;
+        }
+    }
+
+    void DeleteSubtree(Node* node)
+    {
+        if (!node)
+            return;
+
+        for (auto* child : node->children) {
+            DeleteSubtree(child);
+
+            if (child) {
+                delete child;
+                child = nullptr;
+            }
+        }
+    }
+};
+
+QuadTree* QuadTree::Create(const std::vector<const BoundingBox2D*>& geometries, const int kMaxDepth)
+{
+    QuadTree* res = new QuadTree();
+
+    std::function<void (const BoundingBox2D&, const std::vector<const BoundingBox2D*>&, int, QuadTree::Node*)> addDepth
+    = [&](const BoundingBox2D& area, const std::vector<const BoundingBox2D*>& geometries, int depth, QuadTree::Node* parent) {
+        auto& Min = area.Min;
+        auto& Max = area.Max;
+        float halfWidth = area.Width() * 0.5f;
+        float halfHeight = area.Height() * 0.5f;
+        std::vector<BoundingBox2D> subareas;
+        subareas.push_back(BoundingBox2D(XMFLOAT2(Min.x, Min.y), XMFLOAT2(Min.x + halfWidth, Min.y + halfHeight)));
+        subareas.push_back(BoundingBox2D(XMFLOAT2(Min.x + halfWidth, Min.y), XMFLOAT2(Max.x, Min.y + halfHeight)));
+        subareas.push_back(BoundingBox2D(XMFLOAT2(Min.x, Min.y + halfHeight), XMFLOAT2(Min.x + halfWidth, Max.y)));
+        subareas.push_back(BoundingBox2D(XMFLOAT2(Min.x + halfWidth, Min.y + halfHeight), XMFLOAT2(Max.x, Max.y)));
+
+        for (int i = 0; i < subareas.size(); ++i) {
+            auto& subarea = subareas[i];
+
+            for (auto* geometry : geometries) {
+                if (subarea.Intersect(*geometry)) {
+                    QuadTree::Node* pNode = new QuadTree::Node();
+                    parent->children[i] = pNode;
+                    pNode->parent = parent;
+                    pNode->isFull = false;
+                    pNode->depth = depth;
+
+                    if (depth + 1 < kMaxDepth) {
+                        addDepth(subarea, geometries, depth + 1, pNode);
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        parent->isFull = parent->children[0] && parent->children[1] && parent->children[2] && parent->children[3];
+    };
+
+    BoundingBox2D viewArea(XMFLOAT2(-1, -1), XMFLOAT2(1, 1));
+    QuadTree::Node* pRootNode = new QuadTree::Node();
+    pRootNode->parent = nullptr;
+    pRootNode->isFull = true;
+    pRootNode->depth = 0;
+
+    res->rootNode = pRootNode;
+
+    addDepth(viewArea, geometries, 1, res->rootNode);
+
+    return res;
+}
+
+static QuadTree* lastQuadTree = nullptr;
+
+float GetDynamicScoreBasedOnQuadtree(const QuadTree::Node* prev, const QuadTree::Node* current)
+{
+    float sum = 0.0f;
+
+    for (int i = 0; i < 4; ++i) {
+        bool prevExist = prev->children[i];
+        bool currentExist = current->children[i];
+
+        if (prevExist && currentExist) {
+            sum += GetDynamicScoreBasedOnQuadtree(prev->children[i], current->children[i]);
+        }
+        else if (prevExist != currentExist) {
+            assert(prev->depth == current->depth);
+
+            if (prevExist) {
+                sum += 1.0f / (4 * prev->children[i]->depth);
+            }
+            else if (currentExist) {
+                sum += 1.0f / (4 * current->children[i]->depth);
+            }
+        }
+    }
+
+	return sum;
 }
 
 // Loads and initializes application assets when the application is loaded.
@@ -413,6 +556,7 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 				m_spinningCubeRenderer->Render();
 			}
 #endif
+// #define IMAGE_BASED_APPROACH
 #ifdef IMAGE_BASED_APPROACH
 			int width, height;
 			auto backBufferTex = GetReadableTexture2D(
@@ -439,9 +583,10 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 			if (currentFrame && lastFrame)
 			{
 				// float dynamicScore = GetDynamicScoreBasedOnMSE(lastFrame, currentFrame, frameWidth, frameHeight);
-				float dynamicScore = GetDynamicScoreBasedOnSSIM(lastFrame, currentFrame, frameWidth, frameHeight);
+				// float dynamicScore = GetDynamicScoreBasedOnSSIM(lastFrame, currentFrame, frameWidth, frameHeight);
+                float dynamicScore = GetDynamicScoreBasedOnMSEGrayscaled(lastFrame, currentFrame, frameWidth, frameHeight);
 
-				OutputDebugStringA((std::to_string(dynamicScore) + '\n').c_str());
+                OutputDebugStringA((std::to_string(dynamicScore) + '\n').c_str());
 			}
 
 			std::swap(lastFrame, currentFrame);
@@ -471,13 +616,22 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 				boundingBox2D.AddPoint(result.x, result.y);
 			}
 
- 			float dynamicScore = GetDynamicScoreBasedOnQuadtree();
+            std::vector<const BoundingBox2D*> bbs;
+            bbs.push_back(&boundingBox2D);
 
-			OutputDebugStringA(("Dynamic score: " + std::to_string(dynamicScore) + '\n').c_str());
-			OutputDebugStringA(("Min.x: " + std::to_string(boundingBox2D.Min.x) + '\n').c_str());
-			OutputDebugStringA(("Min.y: " + std::to_string(boundingBox2D.Min.y) + '\n').c_str());
-			OutputDebugStringA(("Max.x: " + std::to_string(boundingBox2D.Max.x) + '\n').c_str());
-			OutputDebugStringA(("Max.y: " + std::to_string(boundingBox2D.Max.y) + '\n').c_str());
+            auto* quadTree = QuadTree::Create(bbs, 32);
+
+            if (lastQuadTree) {
+                float dynamicScore = GetDynamicScoreBasedOnQuadtree(lastQuadTree->rootNode, quadTree->rootNode);
+                OutputDebugStringA((std::to_string(dynamicScore) + '\n').c_str());
+
+                if (lastQuadTree) {
+                    delete lastQuadTree;
+                    lastQuadTree = nullptr;
+                }
+            }
+
+            lastQuadTree = quadTree;
 
 #endif
             atLeastOneCameraRendered = true;

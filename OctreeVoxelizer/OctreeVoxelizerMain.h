@@ -15,18 +15,17 @@
 
 #ifdef DRAW_SAMPLE_CONTENT
 #include "Content\SpinningCubeRenderer.h"
-#include "Content\MeshRenderer.h"
 #include "Content\SpatialInputHandler.h"
 #endif
 
 // Updates, renders, and presents holographic content using Direct3D.
-namespace DisplayComplexity
+namespace OctreeVoxelizer
 {
-    class DisplayComplexityMain : public DX::IDeviceNotify
+    class OctreeVoxelizerMain : public DX::IDeviceNotify
     {
     public:
-        DisplayComplexityMain(const std::shared_ptr<DX::DeviceResources>& deviceResources);
-        ~DisplayComplexityMain();
+        OctreeVoxelizerMain(const std::shared_ptr<DX::DeviceResources>& deviceResources);
+        ~OctreeVoxelizerMain();
 
         // Sets the holographic space. This is our closest analogue to setting a new window
         // for the app.
@@ -70,9 +69,7 @@ namespace DisplayComplexity
 #ifdef DRAW_SAMPLE_CONTENT
         // Renders a colorful holographic cube that's 20 centimeters wide. This sample content
         // is used to demonstrate world-locked rendering.
-        // std::unique_ptr<SpinningCubeRenderer>                           m_spinningCubeRenderer;
-		std::unique_ptr<MeshRenderer>									m_meshRenderer;
-        std::unique_ptr<MeshRenderer>									m_meshRenderer2;
+        std::unique_ptr<SpinningCubeRenderer>                           m_spinningCubeRenderer;
 
         // Listens for the Pressed spatial input event.
         std::shared_ptr<SpatialInputHandler>                            m_spatialInputHandler;

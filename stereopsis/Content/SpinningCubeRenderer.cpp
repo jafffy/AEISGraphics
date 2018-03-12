@@ -2,7 +2,7 @@
 #include "SpinningCubeRenderer.h"
 #include "Common\DirectXHelper.h"
 
-using namespace FrameScaler;
+using namespace stereopsis;
 using namespace Concurrency;
 using namespace DirectX;
 using namespace Windows::Foundation::Numerics;
@@ -10,8 +10,20 @@ using namespace Windows::UI::Input::Spatial;
 
 // Loads vertex and pixel shaders from files and instantiates the cube geometry.
 SpinningCubeRenderer::SpinningCubeRenderer(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
-    m_deviceResources(deviceResources)
+    m_deviceResources(deviceResources),
+    m_vertices {
+        { XMFLOAT3(-0.1f, -0.1f, -0.1f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(-0.1f, -0.1f,  0.1f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-0.1f,  0.1f, -0.1f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        { XMFLOAT3(-0.1f,  0.1f,  0.1f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(0.1f, -0.1f, -0.1f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(0.1f, -0.1f,  0.1f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(0.1f,  0.1f, -0.1f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
+        { XMFLOAT3(0.1f,  0.1f,  0.1f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        }
 {
+
+
     CreateDeviceDependentResources();
 }
 
@@ -41,20 +53,13 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
 {
     // Rotate the cube.
     // Convert degrees to radians, then convert seconds to rotation angle.
-    const float    radiansPerSecond = XMConvertToRadians(m_degreesPerSecond) * 2;
+    const float    radiansPerSecond = XMConvertToRadians(m_degreesPerSecond);
     const double   totalRotation    = timer.GetTotalSeconds() * radiansPerSecond;
     const float    radians          = static_cast<float>(fmod(totalRotation, XM_2PI));
-    const XMMATRIX modelRotation    = XMMatrixRotationY(0);
-
-    float modelX = 0.5f * sinf(radians);
-
-    float y = m_position.y;
-    float z = m_position.z;
-
-    XMFLOAT3 translation(modelX, y, z);
+    const XMMATRIX modelRotation    = XMMatrixRotationY(-radians);
 
     // Position the cube.
-    const XMMATRIX modelTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
+    const XMMATRIX modelTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&m_position));
 
     // Multiply to get the transform matrix.
     // Note that this transform does not enforce a particular coordinate system. The calling
@@ -67,7 +72,22 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
     // matrix is transposed to prepare it for the shader.
     XMStoreFloat4x4(&m_modelConstantBufferData.model, XMMatrixTranspose(modelTransform));
 
-	XMStoreFloat4x4(&modelMatrix, modelTransform);
+    BoundingBoxMax = m_vertices[0].pos;
+    BoundingBoxMin = m_vertices[0].pos;
+
+    for (int i = 1; i < m_vertices.size(); ++i) {
+        XMVECTOR v = XMLoadFloat3(&m_vertices[i].pos);
+        XMFLOAT3 res;
+        XMStoreFloat3(&res, XMVector3Transform(v, modelTransform));
+
+        BoundingBoxMax.x = res.x > BoundingBoxMax.x ? res.x : BoundingBoxMax.x;
+        BoundingBoxMax.y = res.y > BoundingBoxMax.y ? res.y : BoundingBoxMax.y;
+        BoundingBoxMax.z = res.z > BoundingBoxMax.z ? res.z : BoundingBoxMax.z;
+
+        BoundingBoxMin.x = res.x < BoundingBoxMin.x ? res.x : BoundingBoxMin.x;
+        BoundingBoxMin.y = res.y < BoundingBoxMin.y ? res.y : BoundingBoxMin.y;
+        BoundingBoxMin.z = res.z < BoundingBoxMin.z ? res.z : BoundingBoxMin.z;
+    }
 
     // Loading is asynchronous. Resources must be created before they can be updated.
     if (!m_loadingComplete)
@@ -259,32 +279,11 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
     task<void> shaderTaskGroup = m_usingVprtShaders ? (createPSTask && createVSTask) : (createPSTask && createVSTask && createGSTask);
     task<void> createCubeTask  = shaderTaskGroup.then([this] ()
     {
-        // Load mesh vertices. Each vertex has a position and a color.
-        // Note that the cube size has changed from the default DirectX app
-        // template. Windows Holographic is scaled in meters, so to draw the
-        // cube at a comfortable size we made the cube width 0.2 m (20 cm).
-        static const std::array<VertexPositionColor, 8> cubeVertices =
-        {{
-            { XMFLOAT3(-0.1f, -0.1f, -0.1f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
-            { XMFLOAT3(-0.1f, -0.1f,  0.1f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-            { XMFLOAT3(-0.1f,  0.1f, -0.1f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-            { XMFLOAT3(-0.1f,  0.1f,  0.1f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
-            { XMFLOAT3( 0.1f, -0.1f, -0.1f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-            { XMFLOAT3( 0.1f, -0.1f,  0.1f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
-            { XMFLOAT3( 0.1f,  0.1f, -0.1f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
-            { XMFLOAT3( 0.1f,  0.1f,  0.1f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-        }};
-
-		for (int i = 0; i < cubeVertices.size(); ++i) {
-			boundingBox.AddPoint(cubeVertices[i].pos);
-		}
-		boundingBox.BuildGeometry();
-
         D3D11_SUBRESOURCE_DATA vertexBufferData = {0};
-        vertexBufferData.pSysMem                = cubeVertices.data();
+        vertexBufferData.pSysMem                = m_vertices.data();
         vertexBufferData.SysMemPitch            = 0;
         vertexBufferData.SysMemSlicePitch       = 0;
-        const CD3D11_BUFFER_DESC vertexBufferDesc(sizeof(VertexPositionColor) * static_cast<UINT>(cubeVertices.size()), D3D11_BIND_VERTEX_BUFFER);
+        const CD3D11_BUFFER_DESC vertexBufferDesc(sizeof(VertexPositionColor) * static_cast<UINT>(m_vertices.size()), D3D11_BIND_VERTEX_BUFFER);
         DX::ThrowIfFailed(
             m_deviceResources->GetD3DDevice()->CreateBuffer(
                 &vertexBufferDesc,

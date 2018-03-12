@@ -4,23 +4,29 @@
 #include "Common\Singleton.h"
 
 class FramerateController
-	: public Singleton<FramerateController>
+    : public Singleton<FramerateController>
 {
 public:
-	FramerateController();
-	~FramerateController();
+    FramerateController();
+    ~FramerateController();
 
-	void Start();
+    void Start();
 
-	void Tick();
-	void SetFramerate(double frameratePerSecond);
+    void Tick();
+    void Wait();
+    void SetFramerate(double frameratePerSecond);
+    bool ShouldPassThisFrame() const { return currentFramesInSecond > wantedFramePerSecond; }
 
 private:
-	LARGE_INTEGER lastTime;
-	LARGE_INTEGER frequency;
-	LARGE_INTEGER qpcMaxDelta;
+    LARGE_INTEGER lastTime;
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER qpcMaxDelta;
 
-	double wantedFramePerSecond;
+    double oneSecTimer = 0;
+
+    double wantedFramePerSecond;
+    int currentFramesInSecond = 0;
+    double amountToSleep;
 };
 
 #endif // FRAMERATECONTROLLER_H_

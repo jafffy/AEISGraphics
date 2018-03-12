@@ -101,7 +101,7 @@ void AppView::Run()
 	auto* framerateController = new FramerateController();
 
 	framerateController->Start();
-	framerateController->SetFramerate(15);
+	framerateController->SetFramerate(60);
 	
     while (!m_windowClosed)
     {

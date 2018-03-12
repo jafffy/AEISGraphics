@@ -1,11 +1,9 @@
 ﻿#include "pch.h"
 #include "AppView.h"
-#include "FramerateController.h"
 
 #include <ppltasks.h>
-#include <string>
 
-using namespace FrameScaler;
+using namespace stereopsis;
 
 using namespace concurrency;
 using namespace Windows::ApplicationModel;
@@ -55,7 +53,7 @@ void AppView::Initialize(CoreApplicationView^ applicationView)
     // resources.
     m_deviceResources = std::make_shared<DX::DeviceResources>();
 
-    m_main = std::make_unique<FrameScalerMain>(m_deviceResources);
+    m_main = std::make_unique<stereopsisMain>(m_deviceResources);
 }
 
 // Called when the CoreWindow object is created (or re-created).
@@ -98,47 +96,18 @@ void AppView::Load(Platform::String^ entryPoint)
 // update, draw, and present loop, and it also oversees window message processing.
 void AppView::Run()
 {
-    LARGE_INTEGER frequency, lastTime;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&lastTime);
-
-	FramerateController *framerateController = new FramerateController();
-
-	framerateController->Start();
-	framerateController->SetFramerate(60);
-	
     while (!m_windowClosed)
     {
         if (m_windowVisible && (m_holographicSpace != nullptr))
         {
-            framerateController->Tick();
-
-            if (framerateController->ShouldPassThisFrame())
-                continue;
-
             CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
 
             HolographicFrame^ holographicFrame = m_main->Update();
 
-            LARGE_INTEGER currentTime;
-            QueryPerformanceCounter(&currentTime);
-
-            uint64 timeDelta = currentTime.QuadPart - lastTime.QuadPart;
-
-            static const unsigned TicksPerSecond = 10'000'000;
-            timeDelta *= TicksPerSecond;
-            timeDelta /= frequency.QuadPart;
-
-            double dt = static_cast<double>(timeDelta) / TicksPerSecond;
-            OutputDebugStringA((std::to_string(dt) + ',').c_str());
-
             if (m_main->Render(holographicFrame))
             {
-
-                framerateController->Wait();
                 // The holographic frame has an API that presents the swap chain for each
                 // holographic camera.
-
                 m_deviceResources->Present(holographicFrame);
             }
         }

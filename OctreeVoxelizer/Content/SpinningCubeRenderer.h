@@ -4,88 +4,8 @@
 #include "..\Common\StepTimer.h"
 #include "ShaderStructures.h"
 
-#include <float.h>
-
-using namespace DirectX;
-
-namespace FrameScaler
+namespace OctreeVoxelizer
 {
-	struct BoundingBox2D
-	{
-		XMFLOAT2 Min;
-		XMFLOAT2 Max;
-
-		BoundingBox2D()
-			: Min(FLT_MAX, FLT_MAX),
-			Max(-FLT_MAX, -FLT_MAX)
-		{}
-
-        BoundingBox2D(const XMFLOAT2& Min, const XMFLOAT2& Max)
-            : Min(Min), Max(Max) {}
-
-        float Width() const { return Max.x - Min.x; }
-        float Height() const { return Max.y - Min.y; }
-
-		void AddPoint(float x, float y)
-		{
-			Min.x = x < Min.x ? x : Min.x;
-			Min.y = y < Min.y ? y : Min.y;
-			Max.x = x > Max.x ? x : Max.x;
-			Max.y = y > Max.y ? y : Max.y;
-		}
-
-        bool IncludePoint(const XMFLOAT2& v) const
-        {
-            return Min.x < v.x && Min.y < v.y && Max.x > v.x && Max.y > v.y;
-        }
-
-        bool Intersect(const BoundingBox2D& bb) const
-        {
-            return IncludePoint(bb.Min) || IncludePoint(bb.Max);
-        }
-	};
-
-	struct BoundingBox3D
-	{
-		XMFLOAT3 Min;
-		XMFLOAT3 Max;
-
-		XMFLOAT3 vertices[8];
-
-		BoundingBox3D()
-			: Min(FLT_MAX, FLT_MAX, FLT_MAX),
-			Max(-FLT_MAX, -FLT_MAX, -FLT_MAX)
-		{}
-
-		void AddPoint(const XMFLOAT3 &p)
-		{
-			float* m = &Min.x;
-			float* M = &Max.x;
-			const float* pPoint = &p.x;
-
-			for (int i = 0; i < 3; ++i) {
-				if (m[i] > pPoint[i]) {
-					m[i] = pPoint[i];
-				}
-				if (M[i] < pPoint[i]) {
-					M[i] = pPoint[i];
-				}
-			}
-		}
-
-		void BuildGeometry()
-		{
-			vertices[0] = Min;
-			vertices[1] = Max;
-			vertices[2] = XMFLOAT3(Min.x, Max.y, Max.z);
-			vertices[3] = XMFLOAT3(Min.x, Max.y, Min.z);
-			vertices[4] = XMFLOAT3(Max.x, Max.y, Min.z);
-			vertices[5] = XMFLOAT3(Min.x, Min.y, Max.z);
-			vertices[6] = XMFLOAT3(Max.x, Min.y, Max.z);
-			vertices[7] = XMFLOAT3(Max.x, Min.y, Min.z);
-		}
-	};
-
     // This sample renderer instantiates a basic rendering pipeline.
     class SpinningCubeRenderer
     {
@@ -102,9 +22,6 @@ namespace FrameScaler
         // Property accessors.
         void SetPosition(Windows::Foundation::Numerics::float3 pos) { m_position = pos;  }
         Windows::Foundation::Numerics::float3 GetPosition()         { return m_position; }
-
-		BoundingBox3D boundingBox;
-		XMFLOAT4X4 modelMatrix;
 
     private:
         // Cached pointer to device resources.
