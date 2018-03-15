@@ -43,9 +43,9 @@ void DisplayComplexityMain::SetHolographicSpace(HolographicSpace^ holographicSpa
 #ifdef DRAW_SAMPLE_CONTENT
     // Initialize the sample hologram.
 	m_meshRenderer = std::make_unique<MeshRenderer>(m_deviceResources);
-    m_meshRenderer2 = std::make_unique<MeshRenderer>(m_deviceResources);
+    // m_meshRenderer2 = std::make_unique<MeshRenderer>(m_deviceResources);
     m_meshRenderer->SetPosition(Windows::Foundation::Numerics::float3(0.0f, 0.0f, -1.0f));
-    m_meshRenderer2->SetPosition(Windows::Foundation::Numerics::float3(0.1f, 0.0f, -1.0f));
+    // m_meshRenderer2->SetPosition(Windows::Foundation::Numerics::float3(0.1f, 0.0f, -1.0f));
 	// m_spinningCubeRenderer = std::make_unique<SpinningCubeRenderer>(m_deviceResources);
 
     m_spatialInputHandler = std::make_unique<SpatialInputHandler>();
@@ -347,7 +347,7 @@ void DisplayComplexityMain::OnDeviceLost()
 #ifdef DRAW_SAMPLE_CONTENT
     // m_spinningCubeRenderer->ReleaseDeviceDependentResources();
 	m_meshRenderer->ReleaseDeviceDependentResources();
-    m_meshRenderer2->ReleaseDeviceDependentResources();
+    // m_meshRenderer2->ReleaseDeviceDependentResources();
 #endif
 }
 
@@ -358,7 +358,7 @@ void DisplayComplexityMain::OnDeviceRestored()
 #ifdef DRAW_SAMPLE_CONTENT
     // m_spinningCubeRenderer->CreateDeviceDependentResources();
 	m_meshRenderer->CreateDeviceDependentResources();
-    m_meshRenderer2->CreateDeviceDependentResources();
+    // m_meshRenderer2->CreateDeviceDependentResources();
 #endif
 }
 
