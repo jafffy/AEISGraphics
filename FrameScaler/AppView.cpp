@@ -130,7 +130,6 @@ void AppView::Run()
             timeDelta /= frequency.QuadPart;
 
             double dt = static_cast<double>(timeDelta) / TicksPerSecond;
-            OutputDebugStringA((std::to_string(dt) + ',').c_str());
 
             if (m_main->Render(holographicFrame))
             {
