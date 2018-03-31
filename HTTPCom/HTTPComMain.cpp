@@ -51,6 +51,9 @@ static std::thread t([]() {
 		if (elapsedTime < 1000) {
 			Sleep(1000 - elapsedTime);
 		}
+		else {
+			OutputDebugStringA("Non Slept\n");
+		}
 	}
 });
 

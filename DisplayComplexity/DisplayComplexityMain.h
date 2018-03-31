@@ -19,6 +19,8 @@
 #include "Content\SpatialInputHandler.h"
 #endif
 
+#include <vector>
+
 // Updates, renders, and presents holographic content using Direct3D.
 namespace DisplayComplexity
 {
@@ -71,7 +73,7 @@ namespace DisplayComplexity
         // Renders a colorful holographic cube that's 20 centimeters wide. This sample content
         // is used to demonstrate world-locked rendering.
         // std::unique_ptr<SpinningCubeRenderer>                           m_spinningCubeRenderer;
-		std::unique_ptr<MeshRenderer>									m_meshRenderer;
+		std::vector<std::unique_ptr<MeshRenderer>>						m_meshRenderers;
 
         // Listens for the Pressed spatial input event.
         std::shared_ptr<SpatialInputHandler>                            m_spatialInputHandler;

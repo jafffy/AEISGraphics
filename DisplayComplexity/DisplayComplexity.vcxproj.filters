@@ -150,5 +150,11 @@
     <Image Include="Assets\bunny_4.obj">
       <Filter>Assets</Filter>
     </Image>
+    <Image Include="Assets\cube.obj">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\cube.mtl">
+      <Filter>Assets</Filter>
+    </Image>
   </ItemGroup>
 </Project>

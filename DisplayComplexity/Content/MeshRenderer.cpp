@@ -37,7 +37,7 @@ void MeshRenderer::Update(const DX::StepTimer& timer)
     const double   totalRotation = timer.GetTotalSeconds() * radiansPerSecond;
     const float    radians = static_cast<float>(fmod(totalRotation, XM_2PI));
     const XMMATRIX modelRotation = XMMatrixRotationY(-radians);
-    const XMMATRIX modelScale = XMMatrixScaling(.01f, .01f, .01f);
+    const XMMATRIX modelScale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
 
     const XMMATRIX modelTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&m_position));
 
@@ -82,7 +82,7 @@ void MeshRenderer::Render()
     );
     context->IASetIndexBuffer(
         m_indexBuffer.Get(),
-        DXGI_FORMAT_R16_UINT, // Each index is one 16-bit unsigned integer (short).
+        DXGI_FORMAT_R32_UINT, // Each index is one 16-bit unsigned integer (short).
         0
     );
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -238,7 +238,7 @@ void MeshRenderer::CreateDeviceDependentResources()
         indexBufferData.pSysMem = mesh->meshIndices.data();
         indexBufferData.SysMemPitch = 0;
         indexBufferData.SysMemSlicePitch = 0;
-        CD3D11_BUFFER_DESC indexBufferDesc(sizeof(unsigned short) * mesh->meshIndices.size(), D3D11_BIND_INDEX_BUFFER);
+        CD3D11_BUFFER_DESC indexBufferDesc(sizeof(unsigned int) * mesh->meshIndices.size(), D3D11_BIND_INDEX_BUFFER);
         DX::ThrowIfFailed(
             m_deviceResources->GetD3DDevice()->CreateBuffer(
                 &indexBufferDesc,

@@ -11,7 +11,7 @@ namespace DisplayComplexity
     {
     public:
         std::vector<VertexPositionColor> meshVertices;
-        std::vector<unsigned short> meshIndices;
+        std::vector<unsigned int> meshIndices;
     };
 
     class MeshCache : public Singleton<MeshCache>
