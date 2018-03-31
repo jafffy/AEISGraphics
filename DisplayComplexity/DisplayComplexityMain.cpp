@@ -7,6 +7,8 @@
 
 #include "Common\MeshCache.h"
 
+#include <string>
+
 using namespace DisplayComplexity;
 
 using namespace concurrency;
@@ -232,81 +234,83 @@ HolographicFrame^ DisplayComplexityMain::Update()
 // frame was rendered to at least one camera.
 bool DisplayComplexityMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holographicFrame)
 {
-	// Don't try to render anything before the first Update.
-	if (m_timer.GetFrameCount() == 0)
-	{
-		return false;
-	}
+    // Don't try to render anything before the first Update.
+    if (m_timer.GetFrameCount() == 0)
+    {
+        return false;
+    }
 
-	//
-	// TODO: Add code for pre-pass rendering here.
-	//
-	// Take care of any tasks that are not specific to an individual holographic
-	// camera. This includes anything that doesn't need the final view or projection
-	// matrix, such as lighting maps.
-	//
+    //
+    // TODO: Add code for pre-pass rendering here.
+    //
+    // Take care of any tasks that are not specific to an individual holographic
+    // camera. This includes anything that doesn't need the final view or projection
+    // matrix, such as lighting maps.
+    //
 
-	// Lock the set of holographic camera resources, then draw to each camera
-	// in this frame.
-	return m_deviceResources->UseHolographicCameraResources<bool>(
-		[this, holographicFrame](std::map<UINT32, std::unique_ptr<DX::CameraResources>>& cameraResourceMap)
-	{
-		// Up-to-date frame predictions enhance the effectiveness of image stablization and
-		// allow more accurate positioning of holograms.
-		holographicFrame->UpdateCurrentPrediction();
-		HolographicFramePrediction^ prediction = holographicFrame->CurrentPrediction;
+    // Lock the set of holographic camera resources, then draw to each camera
+    // in this frame.
+    return m_deviceResources->UseHolographicCameraResources<bool>(
+        [this, holographicFrame](std::map<UINT32, std::unique_ptr<DX::CameraResources>>& cameraResourceMap)
+    {
+        // Up-to-date frame predictions enhance the effectiveness of image stablization and
+        // allow more accurate positioning of holograms.
+        holographicFrame->UpdateCurrentPrediction();
+        HolographicFramePrediction^ prediction = holographicFrame->CurrentPrediction;
 
-		bool atLeastOneCameraRendered = false;
-		for (auto cameraPose : prediction->CameraPoses)
-		{
-			// This represents the device-based resources for a HolographicCamera.
-			DX::CameraResources* pCameraResources = cameraResourceMap[cameraPose->HolographicCamera->Id].get();
+        bool atLeastOneCameraRendered = false;
 
-			// Get the device context.
-			const auto context = m_deviceResources->GetD3DDeviceContext();
-			const auto depthStencilView = pCameraResources->GetDepthStencilView();
+        int cameraId = 0;
 
-			// Set render targets to the current holographic camera.
-			ID3D11RenderTargetView *const targets[1] = { pCameraResources->GetBackBufferRenderTargetView() };
-			context->OMSetRenderTargets(1, targets, depthStencilView);
+        for (auto cameraPose : prediction->CameraPoses)
+        {
+            // This represents the device-based resources for a HolographicCamera.
+            DX::CameraResources* pCameraResources = cameraResourceMap[cameraPose->HolographicCamera->Id].get();
 
-			// Clear the back buffer and depth stencil view.
-			context->ClearRenderTargetView(targets[0], DirectX::Colors::Transparent);
-			context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+            // Get the device context.
+            const auto context = m_deviceResources->GetD3DDeviceContext();
+            const auto depthStencilView = pCameraResources->GetDepthStencilView();
 
-			//
-			// TODO: Replace the sample content with your own content.
-			//
-			// Notes regarding holographic content:
-			//    * For drawing, remember that you have the potential to fill twice as many pixels
-			//      in a stereoscopic render target as compared to a non-stereoscopic render target
-			//      of the same resolution. Avoid unnecessary or repeated writes to the same pixel,
-			//      and only draw holograms that the user can see.
-			//    * To help occlude hologram geometry, you can create a depth map using geometry
-			//      data obtained via the surface mapping APIs. You can use this depth map to avoid
-			//      rendering holograms that are intended to be hidden behind tables, walls,
-			//      monitors, and so on.
-			//    * Black pixels will appear transparent to the user wearing the device, but you
-			//      should still use alpha blending to draw semitransparent holograms. You should
-			//      also clear the screen to Transparent as shown above.
-			//
+            // Set render targets to the current holographic camera.
+            ID3D11RenderTargetView *const targets[1] = { pCameraResources->GetBackBufferRenderTargetView() };
+            context->OMSetRenderTargets(1, targets, depthStencilView);
 
-			// The view and projection matrices for each holographic camera will change
-			// every frame. This function refreshes the data in the constant buffer for
-			// the holographic camera indicated by cameraPose.
-			pCameraResources->UpdateViewProjectionBuffer(m_deviceResources, cameraPose, m_referenceFrame->CoordinateSystem);
+            // Clear the back buffer and depth stencil view.
+            context->ClearRenderTargetView(targets[0], DirectX::Colors::Transparent);
+            context->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-			// Attach the view/projection constant buffer for this camera to the graphics pipeline.
-			bool cameraActive = pCameraResources->AttachViewProjectionBuffer(m_deviceResources);
+            //
+            // TODO: Replace the sample content with your own content.
+            //
+            // Notes regarding holographic content:
+            //    * For drawing, remember that you have the potential to fill twice as many pixels
+            //      in a stereoscopic render target as compared to a non-stereoscopic render target
+            //      of the same resolution. Avoid unnecessary or repeated writes to the same pixel,
+            //      and only draw holograms that the user can see.
+            //    * To help occlude hologram geometry, you can create a depth map using geometry
+            //      data obtained via the surface mapping APIs. You can use this depth map to avoid
+            //      rendering holograms that are intended to be hidden behind tables, walls,
+            //      monitors, and so on.
+            //    * Black pixels will appear transparent to the user wearing the device, but you
+            //      should still use alpha blending to draw semitransparent holograms. You should
+            //      also clear the screen to Transparent as shown above.
+            //
 
-#ifdef DRAW_SAMPLE_CONTENT
+            // The view and projection matrices for each holographic camera will change
+            // every frame. This function refreshes the data in the constant buffer for
+            // the holographic camera indicated by cameraPose.
+            pCameraResources->UpdateViewProjectionBuffer(m_deviceResources, cameraPose, m_referenceFrame->CoordinateSystem);
+
+            // Attach the view/projection constant buffer for this camera to the graphics pipeline.
+            bool cameraActive = pCameraResources->AttachViewProjectionBuffer(m_deviceResources);
+
 			// Only render world-locked content when positional tracking is active.
 			if (cameraActive)
 			{
 				for (auto& meshRenderer : m_meshRenderers)
 					meshRenderer->Render();
 			}
-#endif
+
 			atLeastOneCameraRendered = true;
 		}
 

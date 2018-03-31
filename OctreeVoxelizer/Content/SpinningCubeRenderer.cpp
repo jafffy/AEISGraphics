@@ -2,7 +2,7 @@
 #include "SpinningCubeRenderer.h"
 #include "Common\DirectXHelper.h"
 
-using namespace FrameScaler;
+using namespace OctreeVoxelizer;
 using namespace Concurrency;
 using namespace DirectX;
 using namespace Windows::Foundation::Numerics;
@@ -41,20 +41,13 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
 {
     // Rotate the cube.
     // Convert degrees to radians, then convert seconds to rotation angle.
-    const float    radiansPerSecond = XMConvertToRadians(m_degreesPerSecond) * 2;
+    const float    radiansPerSecond = XMConvertToRadians(m_degreesPerSecond);
     const double   totalRotation    = timer.GetTotalSeconds() * radiansPerSecond;
     const float    radians          = static_cast<float>(fmod(totalRotation, XM_2PI));
-    const XMMATRIX modelRotation    = XMMatrixRotationY(0);
-
-    float modelX = 0.5f * sinf(radians);
-
-    float y = m_position.y;
-    float z = m_position.z;
-
-    XMFLOAT3 translation(modelX, y, z);
+    const XMMATRIX modelRotation    = XMMatrixRotationY(-radians);
 
     // Position the cube.
-    const XMMATRIX modelTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
+    const XMMATRIX modelTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&m_position));
 
     // Multiply to get the transform matrix.
     // Note that this transform does not enforce a particular coordinate system. The calling
@@ -66,8 +59,6 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
     // Here, we provide the model transform for the sample hologram. The model transform
     // matrix is transposed to prepare it for the shader.
     XMStoreFloat4x4(&m_modelConstantBufferData.model, XMMatrixTranspose(modelTransform));
-
-	XMStoreFloat4x4(&modelMatrix, modelTransform);
 
     // Loading is asynchronous. Resources must be created before they can be updated.
     if (!m_loadingComplete)
@@ -274,11 +265,6 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
             { XMFLOAT3( 0.1f,  0.1f, -0.1f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
             { XMFLOAT3( 0.1f,  0.1f,  0.1f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
         }};
-
-		for (int i = 0; i < cubeVertices.size(); ++i) {
-			boundingBox.AddPoint(cubeVertices[i].pos);
-		}
-		boundingBox.BuildGeometry();
 
         D3D11_SUBRESOURCE_DATA vertexBufferData = {0};
         vertexBufferData.pSysMem                = cubeVertices.data();
