@@ -6,6 +6,9 @@
 using namespace DisplayComplexity;
 using namespace DirectX;
 
+int granularity = 30;
+int depth = 30;
+
 struct BoundingBox3D {
     XMFLOAT3 Min, Max;
 
@@ -185,6 +188,167 @@ MeshCache::~MeshCache()
     meshes.clear();
 }
 
+struct BinaryTree;
+struct BinaryTreeNode;
+
+struct BinaryTreeNode {
+public:
+	std::vector<XMFLOAT3*> vertices;
+	BinaryTreeNode * left = nullptr, *right = nullptr;
+	BinaryTree* tree = nullptr;;
+};
+
+struct BinaryTree {
+public:
+	BinaryTreeNode * rootNode = nullptr;
+	std::vector<BoundingBox3D> boundingBoxes;
+};
+
+void BuildBinarySubtree(BinaryTreeNode* parent, BoundingBox3D boundingBox, int depth)
+{
+	for (int i = 0; i < parent->vertices.size(); ++i) {
+		boundingBox.AddPoint(*parent->vertices[i]);
+	}
+
+	float widths[3] = {
+		boundingBox.Max.x - boundingBox.Min.x,
+		boundingBox.Max.y - boundingBox.Min.y,
+		boundingBox.Max.z - boundingBox.Min.z
+	};
+
+	float mid[] = {
+		boundingBox.Min.x + widths[0] * 0.5f,
+		boundingBox.Min.y + widths[1] * 0.5f,
+		boundingBox.Min.z + widths[2] * 0.5f
+	};
+
+	int orderedIndices[3] = { 0 };
+	float minValue = FLT_MAX, maxValue = -FLT_MAX;
+
+	for (int i = 0; i < 3; ++i) {
+		if (widths[i] > maxValue) {
+			maxValue = widths[i];
+			orderedIndices[0] = i;
+		}
+		if (widths[i] < minValue) {
+			minValue = widths[i];
+			orderedIndices[2] = i;
+		}
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		if (i != orderedIndices[0] && i != orderedIndices[2]) {
+			orderedIndices[1] = i;
+			break;
+		}
+	}
+
+	int currentIndex = 0;
+FAILED:
+	int maxIndices;
+	maxIndices = orderedIndices[currentIndex];
+
+	for (int i = 0; i < parent->vertices.size(); ++i) {
+		const float* pVertices = (const float*)parent->vertices[i];
+
+		if (pVertices[maxIndices] > mid[maxIndices]) {
+			if (!parent->left) {
+				parent->left = new BinaryTreeNode();
+				parent->left->tree = parent->tree;
+			}
+
+			parent->left->vertices.push_back(parent->vertices[i]);
+		}
+		else {
+			if (!parent->right) {
+				parent->right = new BinaryTreeNode();
+				parent->right->tree = parent->tree;
+			}
+
+			parent->right->vertices.push_back(parent->vertices[i]);
+		}
+	}
+
+	if (!parent->left || !parent->right) {
+		if (parent->left)
+			parent->left->vertices.clear();
+		if (parent->right)
+			parent->right->vertices.clear();
+
+		if (++currentIndex < 3)
+			goto FAILED;
+		else {
+			assert(false);
+		}
+	}
+
+	BoundingBox3D leftBB;
+
+	for (int i = 0; i < parent->left->vertices.size(); ++i) {
+		leftBB.AddPoint(*parent->left->vertices[i]);
+	}
+
+	BoundingBox3D rightBB;
+
+	for (int i = 0; i < parent->right->vertices.size(); ++i) {
+		rightBB.AddPoint(*parent->right->vertices[i]);
+	}
+
+	if (parent->left && parent->left->vertices.size() > granularity && depth - 1 > 0) {
+		BuildBinarySubtree(parent->left, leftBB, depth - 1);
+	}
+	else if (parent->left) {
+		parent->tree->boundingBoxes.push_back(leftBB);
+	}
+
+	if (parent->right && parent->right->vertices.size() > granularity && depth - 1 > 0) {
+		BuildBinarySubtree(parent->right, rightBB, depth - 1);
+	}
+	else if (parent->right) {
+		parent->tree->boundingBoxes.push_back(rightBB);
+	}
+}
+
+BinaryTree* BuildBinaryTree(std::vector<XMFLOAT3*> vertices, int depth)
+{
+	BinaryTree* tree = new BinaryTree();
+
+	BoundingBox3D boundingBox;
+
+	for (int i = 0; i < vertices.size(); ++i) {
+		boundingBox.AddPoint(*vertices[i]);
+	}
+
+	XMFLOAT3 median;
+	median.x = (boundingBox.Max.x + boundingBox.Min.x) * 0.5f;
+	median.y = (boundingBox.Max.y + boundingBox.Min.y) * 0.5f;
+	median.z = (boundingBox.Max.z + boundingBox.Min.z) * 0.5f;
+
+	tree->rootNode = new BinaryTreeNode();
+	tree->rootNode->vertices = vertices;
+	tree->rootNode->tree = tree;
+
+	for (int i = 0; i < vertices.size(); ++i) {
+		vertices[i]->x -= median.x;
+		vertices[i]->y -= median.y;
+		vertices[i]->z -= median.z;
+	}
+
+	BuildBinarySubtree(tree->rootNode, boundingBox, depth);
+
+	for (auto& bb : tree->boundingBoxes) {
+		bb.Max.x += median.x;
+		bb.Max.y += median.y;
+		bb.Max.z += median.z;
+
+		bb.Min.x += median.x;
+		bb.Min.y += median.y;
+		bb.Min.z += median.z;
+	}
+
+	return tree;
+}
+
 
 Mesh* MeshCache::GetMesh(const std::string& path, const std::string& base_dir)
 {
@@ -196,7 +360,7 @@ Mesh* MeshCache::GetMesh(const std::string& path, const std::string& base_dir)
     std::vector<tinyobj::material_t> materials;
     std::string err;
 
-    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, ".\\Assets\\bunny_2.obj", ".\\Assets\\", false);
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, ".\\Assets\\bunny.obj", ".\\Assets\\", false);
 
     if ( !err.empty() )
     {
@@ -210,6 +374,7 @@ Mesh* MeshCache::GetMesh(const std::string& path, const std::string& base_dir)
 
 	Mesh* mesh = new Mesh();
 
+	/*
 	int N = 1;
 	for (unsigned int n = 0; n < N; ++n) {
 		for (unsigned int i = 0; i < attrib.vertices.size() / 3; ++i)
@@ -240,12 +405,37 @@ Mesh* MeshCache::GetMesh(const std::string& path, const std::string& base_dir)
 		}
 	}
 	meshes[path] = mesh;
-/*
+	*/
     std::vector<XMFLOAT3*> vertices;
 
     for (int i = 0; i < attrib.vertices.size() / 3; ++i) {
         vertices.push_back(reinterpret_cast<XMFLOAT3*>(attrib.vertices.data() + 3 * i));
     }
+
+	LARGE_INTEGER lastTime, currentTime, frequency;
+	QueryPerformanceFrequency(&frequency);
+
+	static const unsigned TicksPerSecond = 10'000'000;
+
+	QueryPerformanceCounter(&lastTime);
+
+	BuildBinaryTree(vertices, depth);
+
+	QueryPerformanceCounter(&currentTime);
+
+	uint64 timeDelta = currentTime.QuadPart - lastTime.QuadPart;
+
+	timeDelta *= TicksPerSecond;
+	timeDelta /= frequency.QuadPart;
+
+	double dt = static_cast<double>(timeDelta) / TicksPerSecond;
+
+	OutputDebugStringA(std::to_string(dt).c_str());
+	OutputDebugStringA("\n");
+
+
+
+	/*
 
     auto* voxelOctree = createOctree(vertices, 5);
 
