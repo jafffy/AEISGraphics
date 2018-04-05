@@ -558,6 +558,14 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 #endif
 // #define IMAGE_BASED_APPROACH
 #ifdef IMAGE_BASED_APPROACH
+
+            LARGE_INTEGER lastTime, currentTime;
+            LARGE_INTEGER frequency;
+
+            QueryPerformanceFrequency(&frequency);
+
+            QueryPerformanceCounter(&lastTime);
+
 			int width, height;
 			auto backBufferTex = GetReadableTexture2D(
 				width, height,
@@ -575,6 +583,17 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 				m_deviceResources->GetD3DDeviceContext(),
 				width, height);
 
+
+            QueryPerformanceCounter(&currentTime);
+
+            double timeDelta = currentTime.QuadPart - lastTime.QuadPart;
+
+            static const unsigned TicksPerSecond = 10'000'000;
+            timeDelta *= TicksPerSecond;
+            timeDelta /= frequency.QuadPart;
+
+            OutputDebugStringA(std::to_string(timeDelta / TicksPerSecond).c_str());
+            OutputDebugStringA("\n");
 			if (backBufferTex) {
 				backBufferTex->Release();
 				backBufferTex = nullptr;
@@ -583,14 +602,19 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 			if (currentFrame && lastFrame)
 			{
 				// float dynamicScore = GetDynamicScoreBasedOnMSE(lastFrame, currentFrame, frameWidth, frameHeight);
-				// float dynamicScore = GetDynamicScoreBasedOnSSIM(lastFrame, currentFrame, frameWidth, frameHeight);
-                float dynamicScore = GetDynamicScoreBasedOnMSEGrayscaled(lastFrame, currentFrame, frameWidth, frameHeight);
-
-                OutputDebugStringA((std::to_string(dynamicScore) + '\n').c_str());
+				// float dynamicScore = GetDynamicScoreBasedOnSSIM(lastFrame, currentFrame, frameWidth / 4, frameHeight / 4);
+                float dynamicScore = GetDynamicScoreBasedOnMSEGrayscaled(lastFrame, currentFrame, frameWidth / 4, frameHeight / 4);
 			}
 
 			std::swap(lastFrame, currentFrame);
 #else
+            LARGE_INTEGER lastTime, currentTime;
+            LARGE_INTEGER frequency;
+
+            QueryPerformanceFrequency(&frequency);
+
+            QueryPerformanceCounter(&lastTime);
+
 			auto modelMatrix = DirectX::XMLoadFloat4x4(&m_spinningCubeRenderer->modelMatrix);
 
 			auto coordinateSystem = m_referenceFrame->CoordinateSystem;
@@ -603,27 +627,36 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 
 			auto boundingBox = m_spinningCubeRenderer->boundingBox;
 
-			BoundingBox2D boundingBox2D;
-			auto vertices = boundingBox.vertices;
-			for (int i = 0; i < 8; ++i) {
-				XMVECTOR vertex = XMLoadFloat3(&vertices[i]);
-
-				XMFLOAT4 result;
-				XMStoreFloat4(&result, 
-					XMVector3TransformCoord(
-						XMVector3TransformCoord(
-							XMVector3TransformCoord(vertex, modelMatrix), viewMatrix), projectionMatrix));
-				boundingBox2D.AddPoint(result.x, result.y);
-			}
-
             std::vector<const BoundingBox2D*> bbs;
-            bbs.push_back(&boundingBox2D);
+            int N = 5;
 
-            auto* quadTree = QuadTree::Create(bbs, 32);
+            for (int i = 0; i < N; ++i) {
+                BoundingBox2D* boundingBox2D = new BoundingBox2D();
+
+                /*
+                auto vertices = boundingBox.vertices;
+                for (int i = 0; i < 8; ++i) {
+                    XMVECTOR vertex = XMLoadFloat3(&vertices[i]);
+
+                    XMFLOAT4 result;
+                    XMStoreFloat4(&result,
+                        XMVector3TransformCoord(
+                            XMVector3TransformCoord(
+                                XMVector3TransformCoord(vertex, modelMatrix), viewMatrix), projectionMatrix));
+                    boundingBox2D->AddPoint(result.x, result.y);
+                }
+                */
+
+                boundingBox2D->AddPoint(-double(rand()) / RAND_MAX, -double(rand()) / RAND_MAX);
+                boundingBox2D->AddPoint(double(rand()) / RAND_MAX, double(rand()) / RAND_MAX);
+
+                bbs.push_back(boundingBox2D);
+            }
+
+            auto* quadTree = QuadTree::Create(bbs, 10);
 
             if (lastQuadTree) {
                 float dynamicScore = GetDynamicScoreBasedOnQuadtree(lastQuadTree->rootNode, quadTree->rootNode);
-                OutputDebugStringA((std::to_string(dynamicScore) + '\n').c_str());
 
                 if (lastQuadTree) {
                     delete lastQuadTree;
@@ -632,6 +665,24 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
             }
 
             lastQuadTree = quadTree;
+
+            QueryPerformanceCounter(&currentTime);
+
+            double timeDelta = currentTime.QuadPart - lastTime.QuadPart;
+
+            static const unsigned TicksPerSecond = 10'000'000;
+            timeDelta *= TicksPerSecond;
+            timeDelta /= frequency.QuadPart;
+
+            OutputDebugStringA(std::to_string(timeDelta / TicksPerSecond).c_str());
+            OutputDebugStringA("\n");
+            
+            for (int i = 0; i < bbs.size(); ++i) {
+                if (bbs[i]) {
+                    delete bbs[i];
+                    bbs[i] = nullptr;
+                }
+            }
 
 #endif
             atLeastOneCameraRendered = true;
