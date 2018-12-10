@@ -17,5 +17,13 @@ namespace FrameScaler
     {
         DirectX::XMFLOAT3 pos;
         DirectX::XMFLOAT3 color;
+
+		VertexPositionColor()
+		{}
+
+		VertexPositionColor(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& color)
+			: pos(pos), color(color)
+		{
+		}
     };
 }

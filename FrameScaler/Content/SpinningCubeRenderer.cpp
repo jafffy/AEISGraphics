@@ -2,45 +2,63 @@
 #include "SpinningCubeRenderer.h"
 #include "Common\DirectXHelper.h"
 
+#include "Common/tiny_obj_loader.h"
+
 using namespace FrameScaler;
 using namespace Concurrency;
 using namespace DirectX;
 using namespace Windows::Foundation::Numerics;
 using namespace Windows::UI::Input::Spatial;
 
-// Loads vertex and pixel shaders from files and instantiates the cube geometry.
+struct BoundingBox3D {
+    XMFLOAT3 Min, Max;
+
+    BoundingBox3D()
+        : Min(FLT_MAX, FLT_MAX, FLT_MAX),
+        Max(-FLT_MAX, -FLT_MAX, -FLT_MAX) {}
+
+    BoundingBox3D(const XMFLOAT3& Min, const XMFLOAT3& Max)
+        : Min(Min), Max(Max) {}
+
+    void AddPoint(const XMFLOAT3& p) {
+        Min.x = p.x < Min.x ? p.x : Min.x;
+        Min.y = p.y < Min.y ? p.y : Min.y;
+        Min.z = p.z < Min.z ? p.z : Min.z;
+
+        Max.x = p.x > Max.x ? p.x : Max.x;
+        Max.y = p.y > Max.y ? p.y : Max.y;
+        Max.z = p.z > Max.z ? p.z : Max.z;
+    }
+
+    bool IncludePoint(const XMFLOAT3& p) {
+        return Min.x < p.x && Min.y < p.y && Min.z < p.z
+            && Max.x > p.x && Max.y > p.y && Max.z > p.z;
+    }
+};
+
+
 SpinningCubeRenderer::SpinningCubeRenderer(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
     m_deviceResources(deviceResources)
 {
     CreateDeviceDependentResources();
 }
 
-// This function uses a SpatialPointerPose to position the world-locked hologram
-// two meters in front of the user's heading.
 void SpinningCubeRenderer::PositionHologram(SpatialPointerPose^ pointerPose)
 {
     if (pointerPose != nullptr)
     {
-        // Get the gaze direction relative to the given coordinate system.
         const float3 headPosition    = pointerPose->Head->Position;
         const float3 headDirection   = pointerPose->Head->ForwardDirection;
 
-        // The hologram is positioned two meters along the user's gaze direction.
         constexpr float distanceFromUser    = 2.0f; // meters
         const float3 gazeAtTwoMeters        = headPosition + (distanceFromUser * headDirection);
 
-        // This will be used as the translation component of the hologram's
-        // model transform.
         SetPosition(gazeAtTwoMeters);
     }
 }
 
-// Called once per frame. Rotates the cube, and calculates and sets the model matrix
-// relative to the position transform indicated by hologramPositionTransform.
 void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
 {
-    // Rotate the cube.
-    // Convert degrees to radians, then convert seconds to rotation angle.
     const float    radiansPerSecond = XMConvertToRadians(m_degreesPerSecond) * 2;
     const double   totalRotation    = timer.GetTotalSeconds() * radiansPerSecond;
     const float    radians          = static_cast<float>(fmod(totalRotation, XM_2PI));
@@ -53,32 +71,21 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
 
     XMFLOAT3 translation(modelX, y, z);
 
-    // Position the cube.
     const XMMATRIX modelTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
-    // Multiply to get the transform matrix.
-    // Note that this transform does not enforce a particular coordinate system. The calling
-    // class is responsible for rendering this content in a consistent manner.
     const XMMATRIX modelTransform   = XMMatrixMultiply(modelRotation, modelTranslation);
 
-    // The view and projection matrices are provided by the system; they are associated
-    // with holographic cameras, and updated on a per-camera basis.
-    // Here, we provide the model transform for the sample hologram. The model transform
-    // matrix is transposed to prepare it for the shader.
     XMStoreFloat4x4(&m_modelConstantBufferData.model, XMMatrixTranspose(modelTransform));
 
 	XMStoreFloat4x4(&modelMatrix, modelTransform);
 
-    // Loading is asynchronous. Resources must be created before they can be updated.
     if (!m_loadingComplete)
     {
         return;
     }
 
-    // Use the D3D device context to update Direct3D device-based resources.
     const auto context = m_deviceResources->GetD3DDeviceContext();
 
-    // Update the model transform buffer for the hologram.
     context->UpdateSubresource(
         m_modelConstantBuffer.Get(),
         0,
@@ -89,14 +96,8 @@ void SpinningCubeRenderer::Update(const DX::StepTimer& timer)
         );
 }
 
-// Renders one frame using the vertex and pixel shaders.
-// On devices that do not support the D3D11_FEATURE_D3D11_OPTIONS3::
-// VPAndRTArrayIndexFromAnyShaderFeedingRasterizer optional feature,
-// a pass-through geometry shader is also used to set the render 
-// target array index.
 void SpinningCubeRenderer::Render()
 {
-    // Loading is asynchronous. Resources must be created before drawing can occur.
     if (!m_loadingComplete)
     {
         return;
@@ -104,7 +105,6 @@ void SpinningCubeRenderer::Render()
 
     const auto context = m_deviceResources->GetD3DDeviceContext();
 
-    // Each vertex is one instance of the VertexPositionColor struct.
     const UINT stride = sizeof(VertexPositionColor);
     const UINT offset = 0;
     context->IASetVertexBuffers(
@@ -116,19 +116,17 @@ void SpinningCubeRenderer::Render()
         );
     context->IASetIndexBuffer(
         m_indexBuffer.Get(),
-        DXGI_FORMAT_R16_UINT, // Each index is one 16-bit unsigned integer (short).
+        DXGI_FORMAT_R32_UINT, // Each index is one 16-bit unsigned integer (short).
         0
         );
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->IASetInputLayout(m_inputLayout.Get());
 
-    // Attach the vertex shader.
     context->VSSetShader(
         m_vertexShader.Get(),
         nullptr,
         0
         );
-    // Apply the model constant buffer to the vertex shader.
     context->VSSetConstantBuffers(
         0,
         1,
@@ -137,10 +135,6 @@ void SpinningCubeRenderer::Render()
 
     if (!m_usingVprtShaders)
     {
-        // On devices that do not support the D3D11_FEATURE_D3D11_OPTIONS3::
-        // VPAndRTArrayIndexFromAnyShaderFeedingRasterizer optional feature,
-        // a pass-through geometry shader is used to set the render target 
-        // array index.
         context->GSSetShader(
             m_geometryShader.Get(),
             nullptr,
@@ -148,14 +142,12 @@ void SpinningCubeRenderer::Render()
             );
     }
 
-    // Attach the pixel shader.
     context->PSSetShader(
         m_pixelShader.Get(),
         nullptr,
         0
         );
 
-    // Draw the objects.
     context->DrawIndexedInstanced(
         m_indexCount,   // Index count per instance.
         2,              // Instance count.
@@ -169,25 +161,17 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
 {
     m_usingVprtShaders = m_deviceResources->GetDeviceSupportsVprt();
 
-    // On devices that do support the D3D11_FEATURE_D3D11_OPTIONS3::
-    // VPAndRTArrayIndexFromAnyShaderFeedingRasterizer optional feature
-    // we can avoid using a pass-through geometry shader to set the render
-    // target array index, thus avoiding any overhead that would be 
-    // incurred by setting the geometry shader stage.
     std::wstring vertexShaderFileName = m_usingVprtShaders ? L"ms-appx:///VprtVertexShader.cso" : L"ms-appx:///VertexShader.cso";
 
-    // Load shaders asynchronously.
     task<std::vector<byte>> loadVSTask = DX::ReadDataAsync(vertexShaderFileName);
     task<std::vector<byte>> loadPSTask = DX::ReadDataAsync(L"ms-appx:///PixelShader.cso");
 
     task<std::vector<byte>> loadGSTask;
     if (!m_usingVprtShaders)
     {
-        // Load the pass-through geometry shader.
         loadGSTask = DX::ReadDataAsync(L"ms-appx:///GeometryShader.cso");
     }
 
-    // After the vertex shader file is loaded, create the shader and input layout.
     task<void> createVSTask = loadVSTask.then([this] (const std::vector<byte>& fileData)
     {
         DX::ThrowIfFailed(
@@ -259,21 +243,43 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
     task<void> shaderTaskGroup = m_usingVprtShaders ? (createPSTask && createVSTask) : (createPSTask && createVSTask && createGSTask);
     task<void> createCubeTask  = shaderTaskGroup.then([this] ()
     {
-        // Load mesh vertices. Each vertex has a position and a color.
-        // Note that the cube size has changed from the default DirectX app
-        // template. Windows Holographic is scaled in meters, so to draw the
-        // cube at a comfortable size we made the cube width 0.2 m (20 cm).
-        static const std::array<VertexPositionColor, 8> cubeVertices =
-        {{
-            { XMFLOAT3(-0.1f, -0.1f, -0.1f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
-            { XMFLOAT3(-0.1f, -0.1f,  0.1f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-            { XMFLOAT3(-0.1f,  0.1f, -0.1f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-            { XMFLOAT3(-0.1f,  0.1f,  0.1f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
-            { XMFLOAT3( 0.1f, -0.1f, -0.1f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-            { XMFLOAT3( 0.1f, -0.1f,  0.1f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
-            { XMFLOAT3( 0.1f,  0.1f, -0.1f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
-            { XMFLOAT3( 0.1f,  0.1f,  0.1f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-        }};
+		std::vector<VertexPositionColor> cubeVertices;
+		std::vector<unsigned int> cubeIndices;
+
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string err;
+
+		bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, ".\\Assets\\sphere.obj", ".\\Assets\\", false);
+
+		if (!err.empty()) {
+			OutputDebugStringA(err.c_str());
+		}
+		if (!ret) {
+			OutputDebugStringA("Failed to load/parse .obj\n");
+		}
+
+		for (unsigned int i = 0; i < attrib.vertices.size() / 3; ++i) {
+			XMFLOAT3 v;
+			v.x = attrib.vertices[3 * i + 0] * 0.01f;
+			v.y = attrib.vertices[3 * i + 1] * 0.01f;
+			v.z = attrib.vertices[3 * i + 2] * 0.01f;
+
+			cubeVertices.push_back(VertexPositionColor(v, XMFLOAT3(1, 1, 1)));
+		}
+
+		for (unsigned int si = 0; si < shapes.size(); ++si) {
+			for (unsigned int ii = 0; ii < shapes[si].mesh.indices.size() / 3; ++ii) {
+				unsigned int a = shapes[si].mesh.indices[3 * ii + 0].vertex_index;
+				unsigned int b = shapes[si].mesh.indices[3 * ii + 1].vertex_index;
+				unsigned int c = shapes[si].mesh.indices[3 * ii + 2].vertex_index;
+
+				cubeIndices.push_back(a);
+				cubeIndices.push_back(b);
+				cubeIndices.push_back(c);
+			}
+		}
 
 		for (int i = 0; i < cubeVertices.size(); ++i) {
 			boundingBox.AddPoint(cubeVertices[i].pos);
@@ -293,40 +299,13 @@ void SpinningCubeRenderer::CreateDeviceDependentResources()
                 )
             );
 
-        // Load mesh indices. Each trio of indices represents
-        // a triangle to be rendered on the screen.
-        // For example: 2,1,0 means that the vertices with indexes
-        // 2, 1, and 0 from the vertex buffer compose the
-        // first triangle of this mesh.
-        // Note that the winding order is clockwise by default.
-        constexpr std::array<unsigned short, 36> cubeIndices =
-        {{
-            2,1,0, // -x
-            2,3,1,
-
-            6,4,5, // +x
-            6,5,7,
-
-            0,1,5, // -y
-            0,5,4,
-
-            2,6,7, // +y
-            2,7,3,
-
-            0,4,6, // -z
-            0,6,2,
-
-            1,3,7, // +z
-            1,7,5,
-        }};
-
         m_indexCount = static_cast<unsigned int>(cubeIndices.size());
 
         D3D11_SUBRESOURCE_DATA indexBufferData  = {0};
         indexBufferData.pSysMem                 = cubeIndices.data();
         indexBufferData.SysMemPitch             = 0;
         indexBufferData.SysMemSlicePitch        = 0;
-        CD3D11_BUFFER_DESC indexBufferDesc(sizeof(unsigned short) * static_cast<UINT>(cubeIndices.size()), D3D11_BIND_INDEX_BUFFER);
+        CD3D11_BUFFER_DESC indexBufferDesc(sizeof(unsigned int) * static_cast<UINT>(cubeIndices.size()), D3D11_BIND_INDEX_BUFFER);
         DX::ThrowIfFailed(
         m_deviceResources->GetD3DDevice()->CreateBuffer(
                 &indexBufferDesc,
