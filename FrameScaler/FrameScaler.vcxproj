@@ -175,18 +175,18 @@
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <Image Include="Assets\sphere.mtl">
+    <Text Include="Assets\sphere.mtl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
       <FileType>Document</FileType>
-    </Image>
-    <Image Include="Assets\sphere_1.mtl">
+    </Text>
+    <Text Include="Assets\sphere_1.mtl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
       <FileType>Document</FileType>
-    </Image>
-    <Image Include="Assets\sphere_2.mtl">
+    </Text>
+    <Text Include="Assets\sphere_2.mtl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
       <FileType>Document</FileType>
-    </Image>
+    </Text>
     <None Include="FrameScaler_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
@@ -208,15 +208,15 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Assets\sphere.obj">
+    <Text Include="Assets\sphere.obj">
       <FileType>Document</FileType>
-    </Image>
-    <Image Include="Assets\sphere_1.obj">
+    </Text>
+    <Text Include="Assets\sphere_1.obj">
       <FileType>Document</FileType>
-    </Image>
-    <Image Include="Assets\sphere_2.obj">
+    </Text>
+    <Text Include="Assets\sphere_2.obj">
       <FileType>Document</FileType>
-    </Image>
+    </Text>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

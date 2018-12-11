@@ -6,6 +6,7 @@
 #include <string>
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <Collection.h>
+#include <cfloat>
 
 
 using namespace FrameScaler;
@@ -294,7 +295,13 @@ void FrameScalerMain::SetHolographicSpace(HolographicSpace^ holographicSpace)
 
     m_holographicSpace = holographicSpace;
 
-    m_spinningCubeRenderer = std::make_unique<SpinningCubeRenderer>(m_deviceResources);
+	int N = 8;
+
+	for (int i = 0; i < N; ++i) {
+		m_spinningCubeRenderers.push_back(std::make_unique<SpinningCubeRenderer>(m_deviceResources));
+
+		m_spinningCubeRenderers[i]->SetPosition(float3((i - N / 2) / (float)N, 0.0f, -5.0f));
+	}
 
     m_spatialInputHandler = std::make_unique<SpatialInputHandler>();
 
@@ -362,37 +369,48 @@ HolographicFrame^ FrameScalerMain::Update()
     SpatialCoordinateSystem^ currentCoordinateSystem = m_referenceFrame->CoordinateSystem;
 
     SpatialInteractionSourceState^ pointerState = m_spatialInputHandler->CheckForInput();
-    if (pointerState != nullptr)
-    {
-        m_spinningCubeRenderer->PositionHologram(
-            pointerState->TryGetPointerPose(currentCoordinateSystem)
-            );
-    }
+	
+	static float timer = 0.0f;
 
     m_timer.Tick([&] ()
-    {
-        m_spinningCubeRenderer->Update(m_timer);
-    });
+	{
+		timer += m_timer.GetElapsedSeconds();
 
-    for (auto cameraPose : prediction->CameraPoses)
-    {
-        HolographicCameraRenderingParameters^ renderingParameters = holographicFrame->GetRenderingParameters(cameraPose);
+		for (int i = 0; i < m_spinningCubeRenderers.size(); ++i) {
+			auto& v = m_spinningCubeRenderers[i];
 
-        renderingParameters->SetFocusPoint(
-            currentCoordinateSystem,
-            m_spinningCubeRenderer->GetPosition()
-            );
-    }
+			auto p = v->GetPosition();
 
-    return holographicFrame;
+			if (i % 2 == 0) {
+				v->SetPosition(float3(p.x, 0.5f * sinf(timer), p.z));
+			}
+			else {
+				v->SetPosition(float3(p.x, 0.5f * -sinf(timer), p.z));
+			}
+
+			v->Update(m_timer);
+		}
+	});
+
+	for (auto cameraPose : prediction->CameraPoses)
+	{
+		HolographicCameraRenderingParameters^ renderingParameters = holographicFrame->GetRenderingParameters(cameraPose);
+
+		renderingParameters->SetFocusPoint(
+			currentCoordinateSystem,
+			m_spinningCubeRenderers[0]->GetPosition()
+		);
+	}
+
+	return holographicFrame;
 }
 
 bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ holographicFrame)
 {
-    if (m_timer.GetFrameCount() == 0)
-    {
-        return false;
-    }
+	if (m_timer.GetFrameCount() == 0)
+	{
+		return false;
+	}
 
 	return m_deviceResources->UseHolographicCameraResources<bool>(
 		[this, holographicFrame](std::map<UINT32, std::unique_ptr<DX::CameraResources>>& cameraResourceMap)
@@ -420,141 +438,107 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 
 			if (cameraActive)
 			{
-				m_spinningCubeRenderer->Render();
-			}
-#ifdef IMAGE_BASED_APPROACH
-
-            LARGE_INTEGER lastTime, currentTime;
-            LARGE_INTEGER frequency;
-
-            QueryPerformanceFrequency(&frequency);
-
-            QueryPerformanceCounter(&lastTime);
-
-			int width, height;
-			auto backBufferTex = GetReadableTexture2D(
-				width, height,
-				pCameraResources->GetBackBufferTexture2D(),
-				m_deviceResources->GetD3DDevice(),
-				m_deviceResources->GetD3DDeviceContext());
-
-			if (!currentFrame) {
-				currentFrame = new unsigned char[width * height * 4];
-				frameWidth = width;
-				frameHeight = height;
+				for (auto& v : m_spinningCubeRenderers) {
+					v->Render();
+				}
 			}
 
-			GetTexture2DDataFromGPU(&currentFrame, backBufferTex,
-				m_deviceResources->GetD3DDeviceContext(),
-				width, height);
-
-
-            QueryPerformanceCounter(&currentTime);
-
-            double timeDelta = currentTime.QuadPart - lastTime.QuadPart;
-
-            static const unsigned TicksPerSecond = 10'000'000;
-            timeDelta *= TicksPerSecond;
-            timeDelta /= frequency.QuadPart;
-
-            OutputDebugStringA(std::to_string(timeDelta / TicksPerSecond).c_str());
-            OutputDebugStringA("\n");
-			if (backBufferTex) {
-				backBufferTex->Release();
-				backBufferTex = nullptr;
-			}
-
-			if (currentFrame && lastFrame)
-			{
-				// float dynamicScore = GetDynamicScoreBasedOnMSE(lastFrame, currentFrame, frameWidth, frameHeight);
-				// float dynamicScore = GetDynamicScoreBasedOnSSIM(lastFrame, currentFrame, frameWidth / 4, frameHeight / 4);
-                float dynamicScore = GetDynamicScoreBasedOnMSEGrayscaled(lastFrame, currentFrame, frameWidth / 4, frameHeight / 4);
-			}
-
-			std::swap(lastFrame, currentFrame);
-#else
-            LARGE_INTEGER lastTime, currentTime;
-            LARGE_INTEGER frequency;
-
-            QueryPerformanceFrequency(&frequency);
-
-            QueryPerformanceCounter(&lastTime);
-
-			auto modelMatrix = DirectX::XMLoadFloat4x4(&m_spinningCubeRenderer->modelMatrix);
+			float max_distance = -FLT_MAX;
 
 			auto coordinateSystem = m_referenceFrame->CoordinateSystem;
 			Platform::IBox<HolographicStereoTransform>^ viewTransformContainer = cameraPose->TryGetViewTransform(coordinateSystem);
+			if (!viewTransformContainer)
+				return false;
 			HolographicStereoTransform viewCoordinateSystemTransform = viewTransformContainer->Value;
 			auto viewMatrix = DirectX::XMLoadFloat4x4(&viewCoordinateSystemTransform.Left);
 
 			HolographicStereoTransform cameraProjectionTransform = cameraPose->ProjectionTransform;
 			auto projectionMatrix = DirectX::XMLoadFloat4x4(&cameraProjectionTransform.Left);
 
-			auto boundingBox = m_spinningCubeRenderer->boundingBox;
+			for (auto& v : m_spinningCubeRenderers) {
+				auto modelMatrix = DirectX::XMLoadFloat4x4(&v->modelMatrix);
+				auto boundingBox = v->boundingBox;
 
-            std::vector<const BoundingBox2D*> bbs;
-            int N = 5;
+				BoundingBox2D boundingBox2D;
 
-            for (int i = 0; i < N; ++i) {
-                BoundingBox2D* boundingBox2D = new BoundingBox2D();
+				auto vertices = boundingBox.vertices;
+				for (int i = 0; i < 8; ++i) {
+					XMVECTOR vertex = XMLoadFloat3(&vertices[i]);
 
-                /*
-                auto vertices = boundingBox.vertices;
-                for (int i = 0; i < 8; ++i) {
-                    XMVECTOR vertex = XMLoadFloat3(&vertices[i]);
+					XMFLOAT4 result;
+					XMStoreFloat4(&result,
+						XMVector3TransformCoord(
+							XMVector3TransformCoord(
+								XMVector3TransformCoord(vertex, modelMatrix), viewMatrix), projectionMatrix));
+					boundingBox2D.AddPoint(result.x, result.y);
+				}
 
-                    XMFLOAT4 result;
-                    XMStoreFloat4(&result,
-                        XMVector3TransformCoord(
-                            XMVector3TransformCoord(
-                                XMVector3TransformCoord(vertex, modelMatrix), viewMatrix), projectionMatrix));
-                    boundingBox2D->AddPoint(result.x, result.y);
-                }
-                */
+				if (boundingBox2D.Min.y > 1 || boundingBox2D.Max.y < -1
+					|| boundingBox2D.Min.x > 1 || boundingBox2D.Max.x < -1) {
+					v->SetCulled(true);
+				}
+				else {
+					v->SetCulled(false);
 
-                boundingBox2D->AddPoint(-float(rand()) / RAND_MAX, -float(rand()) / RAND_MAX);
-                boundingBox2D->AddPoint(float(rand()) / RAND_MAX, float(rand()) / RAND_MAX);
+					float kReductionLevel2 = 10.0f / 80.0f;
+					float kReductionLevel1 = 30.0f / 80.0f;
 
-                bbs.push_back(boundingBox2D);
-            }
+					if (boundingBox2D.Min.y > kReductionLevel2 || boundingBox2D.Max.x < -kReductionLevel2
+						|| boundingBox2D.Min.x > kReductionLevel2 || boundingBox2D.Max.x < -kReductionLevel2) {
+						v->SetReductionLevel(2);
+					}
+					else if (boundingBox2D.Min.y > kReductionLevel1 || boundingBox2D.Max.x < -kReductionLevel1
+						|| boundingBox2D.Min.x > kReductionLevel1 || boundingBox2D.Max.x < -kReductionLevel1) {
+						v->SetReductionLevel(1);
+					}
+					else {
+						v->SetReductionLevel(0);
+					}
 
-            auto* quadTree = QuadTree::Create(bbs, 10);
+					auto prev = XMLoadFloat2(&v->lastProjectedPosition);
+					auto current = XMLoadFloat2(&boundingBox2D.mid());
 
-            if (lastQuadTree) {
-                float dynamicScore = GetDynamicScoreBasedOnQuadtree(lastQuadTree->rootNode, quadTree->rootNode);
+					XMVECTOR vD = XMVector2LengthSq(prev - current);
+					float d;
+					XMStoreFloat(&d, vD);
 
-                if (lastQuadTree) {
-                    delete lastQuadTree;
-                    lastQuadTree = nullptr;
-                }
-            }
+					if (max_distance < d) {
+						max_distance = d;
+					}
 
-            lastQuadTree = quadTree;
+				}
+			}
 
-            QueryPerformanceCounter(&currentTime);
+			atLeastOneCameraRendered = true;
 
-            double timeDelta = double(currentTime.QuadPart - lastTime.QuadPart);
+			constexpr float level1 = 0.01f / 120.0f;
+			constexpr float level2 = 0.005f / 120.0f;
 
-            static const unsigned TicksPerSecond = 10'000'000;
-            timeDelta *= TicksPerSecond;
-            timeDelta /= frequency.QuadPart;
+			auto* frameController = FramerateController::get();
 
-            OutputDebugStringA(std::to_string(timeDelta / TicksPerSecond).c_str());
-            OutputDebugStringA("\n");
-            
-            for (size_t i = 0; i < bbs.size(); ++i) {
-                if (bbs[i]) {
-                    delete bbs[i];
-                    bbs[i] = nullptr;
-                }
-            }
+			int currentFramerate = frameController->GetFramerate();
+			if (currentFramerate > 59) {
+				if (max_distance < level1) {
+					frameController->SetFramerate(30);
+				}
+			}
+			else if (currentFramerate > 29) {
+				if (max_distance > level1) {
+					frameController->SetFramerate(60);
+				}
+				else if (max_distance < level2) {
+					frameController->SetFramerate(15);
+				}
+			}
+			else {
+				if (max_distance > level2) {
+					frameController->SetFramerate(30);
+				}
+			}
+		}
 
-#endif
-            atLeastOneCameraRendered = true;
-        }
-
-        return atLeastOneCameraRendered;
-    });
+		return atLeastOneCameraRendered;
+	});
 }
 
 void FrameScalerMain::SaveAppState()
@@ -567,61 +551,65 @@ void FrameScalerMain::LoadAppState()
 
 void FrameScalerMain::OnDeviceLost()
 {
-    m_spinningCubeRenderer->ReleaseDeviceDependentResources();
+	for (auto& v : m_spinningCubeRenderers) {
+		v->ReleaseDeviceDependentResources();
+	}
 }
 
 void FrameScalerMain::OnDeviceRestored()
 {
-    m_spinningCubeRenderer->CreateDeviceDependentResources();
+	for (auto& v : m_spinningCubeRenderers) {
+		v->CreateDeviceDependentResources();
+	}
 }
 
 void FrameScalerMain::OnLocatabilityChanged(SpatialLocator^ sender, Object^ args)
 {
-    switch (sender->Locatability)
-    {
-    case SpatialLocatability::Unavailable:
-        {
-            String^ message = L"Warning! Positional tracking is " +
-                                        sender->Locatability.ToString() + L".\n";
-            OutputDebugStringW(message->Data());
-        }
-        break;
+	switch (sender->Locatability)
+	{
+	case SpatialLocatability::Unavailable:
+	{
+		String^ message = L"Warning! Positional tracking is " +
+			sender->Locatability.ToString() + L".\n";
+		OutputDebugStringW(message->Data());
+	}
+	break;
 
-    case SpatialLocatability::PositionalTrackingActivating:
+	case SpatialLocatability::PositionalTrackingActivating:
 
-    case SpatialLocatability::OrientationOnly:
+	case SpatialLocatability::OrientationOnly:
 
-    case SpatialLocatability::PositionalTrackingInhibited:
-        break;
+	case SpatialLocatability::PositionalTrackingInhibited:
+		break;
 
-    case SpatialLocatability::PositionalTrackingActive:
-        break;
-    }
+	case SpatialLocatability::PositionalTrackingActive:
+		break;
+	}
 }
 
 void FrameScalerMain::OnCameraAdded(
-    HolographicSpace^ sender,
-    HolographicSpaceCameraAddedEventArgs^ args
-    )
+	HolographicSpace^ sender,
+	HolographicSpaceCameraAddedEventArgs^ args
+)
 {
-    Deferral^ deferral = args->GetDeferral();
-    HolographicCamera^ holographicCamera = args->Camera;
-    create_task([this, deferral, holographicCamera] ()
-    {
-        m_deviceResources->AddHolographicCamera(holographicCamera);
+	Deferral^ deferral = args->GetDeferral();
+	HolographicCamera^ holographicCamera = args->Camera;
+	create_task([this, deferral, holographicCamera]()
+	{
+		m_deviceResources->AddHolographicCamera(holographicCamera);
 
-        deferral->Complete();
-    });
+		deferral->Complete();
+	});
 }
 
 void FrameScalerMain::OnCameraRemoved(
-    HolographicSpace^ sender,
-    HolographicSpaceCameraRemovedEventArgs^ args
-    )
+	HolographicSpace^ sender,
+	HolographicSpaceCameraRemovedEventArgs^ args
+)
 {
-    create_task([this]()
-    {
-    });
+	create_task([this]()
+	{
+	});
 
-    m_deviceResources->RemoveHolographicCamera(args->Camera);
+	m_deviceResources->RemoveHolographicCamera(args->Camera);
 }

@@ -10,6 +10,8 @@
 //
 #define DRAW_SAMPLE_CONTENT
 
+#include <vector>
+
 #include "Common\DeviceResources.h"
 #include "Common\StepTimer.h"
 
@@ -45,7 +47,7 @@ namespace FrameScaler
         virtual void OnDeviceLost();
         virtual void OnDeviceRestored();
 
-		std::unique_ptr<SpinningCubeRenderer>                           m_spinningCubeRenderer;
+		std::vector<std::unique_ptr<SpinningCubeRenderer>>                           m_spinningCubeRenderers;
 
     private:
         // Asynchronously creates resources for new holographic cameras.

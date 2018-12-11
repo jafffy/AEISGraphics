@@ -133,7 +133,6 @@ void AppView::Run()
 
             if (m_main->Render(holographicFrame))
             {
-
                 framerateController->Wait();
                 // The holographic frame has an API that presents the swap chain for each
                 // holographic camera.

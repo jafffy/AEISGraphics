@@ -121,23 +121,23 @@
     <None Include="FrameScaler_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Assets\sphere.obj">
+    <Text Include="Assets\sphere_2.obj">
       <Filter>Assets</Filter>
-    </Image>
-    <Image Include="Assets\sphere_1.obj">
+    </Text>
+    <Text Include="Assets\sphere.mtl">
       <Filter>Assets</Filter>
-    </Image>
-    <Image Include="Assets\sphere_2.obj">
+    </Text>
+    <Text Include="Assets\sphere.obj">
       <Filter>Assets</Filter>
-    </Image>
-    <Image Include="Assets\sphere.mtl">
+    </Text>
+    <Text Include="Assets\sphere_1.mtl">
       <Filter>Assets</Filter>
-    </Image>
-    <Image Include="Assets\sphere_1.mtl">
+    </Text>
+    <Text Include="Assets\sphere_1.obj">
       <Filter>Assets</Filter>
-    </Image>
-    <Image Include="Assets\sphere_2.mtl">
+    </Text>
+    <Text Include="Assets\sphere_2.mtl">
       <Filter>Assets</Filter>
-    </Image>
+    </Text>
   </ItemGroup>
 </Project>

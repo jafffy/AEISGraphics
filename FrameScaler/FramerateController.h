@@ -16,6 +16,7 @@ public:
     void Wait();
     void SetFramerate(double frameratePerSecond);
     bool ShouldPassThisFrame() const { return currentFramesInSecond > wantedFramePerSecond; }
+	double GetFramerate() const;
 
 private:
     LARGE_INTEGER lastTime;

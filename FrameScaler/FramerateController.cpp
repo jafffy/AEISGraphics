@@ -60,3 +60,8 @@ void FramerateController::SetFramerate(double frameratePerSecond)
 {
     wantedFramePerSecond = frameratePerSecond;
 }
+
+double FramerateController::GetFramerate() const
+{
+	return wantedFramePerSecond;
+}

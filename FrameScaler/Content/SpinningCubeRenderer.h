@@ -43,6 +43,15 @@ namespace FrameScaler
         {
             return IncludePoint(bb.Min) || IncludePoint(bb.Max);
         }
+
+		XMFLOAT2 mid() const
+		{
+			XMFLOAT2 m;
+			m.x = (Min.x + Max.x) * 0.5f;
+			m.y = (Min.y + Max.y) * 0.5f;
+
+			return m;
+		}
 	};
 
 	struct BoundingBox3D
@@ -105,12 +114,25 @@ namespace FrameScaler
 
 		BoundingBox3D boundingBox;
 		XMFLOAT4X4 modelMatrix;
+		XMFLOAT2 lastProjectedPosition;
+
+		void SetCulled(bool isCulled);
+		void SetReductionLevel(int reductionLevel);
+
+		bool isCulled = false;
+		int reductionLevel = 0;
 
     private:
         // Cached pointer to device resources.
         std::shared_ptr<DX::DeviceResources>            m_deviceResources;
 
         // Direct3D resources for cube geometry.
+        Microsoft::WRL::ComPtr<ID3D11Buffer>            m_vertexBuffer_2;
+        Microsoft::WRL::ComPtr<ID3D11Buffer>            m_indexBuffer_2;
+
+        Microsoft::WRL::ComPtr<ID3D11Buffer>            m_vertexBuffer_1;
+        Microsoft::WRL::ComPtr<ID3D11Buffer>            m_indexBuffer_1;
+
         Microsoft::WRL::ComPtr<ID3D11InputLayout>       m_inputLayout;
         Microsoft::WRL::ComPtr<ID3D11Buffer>            m_vertexBuffer;
         Microsoft::WRL::ComPtr<ID3D11Buffer>            m_indexBuffer;
@@ -122,6 +144,8 @@ namespace FrameScaler
         // System resources for cube geometry.
         ModelConstantBuffer                             m_modelConstantBufferData;
         uint32                                          m_indexCount = 0;
+        uint32                                          m_indexCount_1 = 0;
+        uint32                                          m_indexCount_2 = 0;
 
         // Variables used with the rendering loop.
         bool                                            m_loadingComplete = false;

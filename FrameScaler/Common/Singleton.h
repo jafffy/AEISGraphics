@@ -12,7 +12,10 @@ public:
 		pSingleton = static_cast<T*>(this);
 	}
 
-	static T* get();
+	static T* get()
+	{
+		return pSingleton;
+	}
 };
 
 template <typename T>
