@@ -443,6 +443,8 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 				}
 			}
 
+#if defined(LPGL)
+
 			float max_distance = -FLT_MAX;
 
 			auto coordinateSystem = m_referenceFrame->CoordinateSystem;
@@ -536,6 +538,7 @@ bool FrameScalerMain::Render(Windows::Graphics::Holographic::HolographicFrame^ h
 				}
 			}
 		}
+#endif
 
 		return atLeastOneCameraRendered;
 	});

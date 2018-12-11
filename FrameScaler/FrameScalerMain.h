@@ -20,6 +20,8 @@
 #include "Content\SpatialInputHandler.h"
 #endif
 
+#define LPGL
+
 // Updates, renders, and presents holographic content using Direct3D.
 namespace FrameScaler
 {

@@ -106,6 +106,9 @@ void AppView::Run()
 
 	framerateController->Start();
 	framerateController->SetFramerate(60);
+
+	double timer = 0.0f;
+	int FPS = 0;
 	
     while (!m_windowClosed)
     {
@@ -130,12 +133,25 @@ void AppView::Run()
             timeDelta /= frequency.QuadPart;
 
             double dt = static_cast<double>(timeDelta) / TicksPerSecond;
+			timer += dt;
+			++FPS;
+
+			if (timer > 1.0) {
+				char buf[512];
+				sprintf(buf, "FPS: %d\n", FPS);
+				OutputDebugStringA(buf);
+
+				FPS = 0;
+				timer = 0.0f;
+			}
 
             if (m_main->Render(holographicFrame))
             {
+#if defined(LPGL)
                 framerateController->Wait();
                 // The holographic frame has an API that presents the swap chain for each
                 // holographic camera.
+#endif
 
                 m_deviceResources->Present(holographicFrame);
             }
